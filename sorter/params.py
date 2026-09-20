@@ -31,6 +31,51 @@ BELT_SPACING = 60.0              # mm, centre to centre of the two belts
 PULLEY_PD = PULLEY_TEETH * BELT_PITCH / math.pi   # mm, 38.1972...
 CENTRE_DIST = (BELT_LOOP_LENGTH - math.pi * PULLEY_PD) / 2   # mm, 135.0 -- short span, unconfirmed against machine layout, see rev C §8
 
+# --- Tooth profile (HTD-5M) -- phase3-cad-spec-revB.md -----------------
+# Closed-form: a single flank arc reaching the apex directly, blended into
+# the land by a root fillet on each side. No separate tip arc, no solver.
+
+FLANK_RADIUS = 1.49       # mm -- APPROXIMATE, tune per revB §7
+ROOT_RADIUS = 0.43        # mm -- APPROXIMATE, tune per revB §7
+FLANK_CENTRE_Y = 0.5715   # mm, flank arc centre height above the land
+
+# FLANK_CENTRE_Y and BELT_PLD are the same physical offset (the belt's pitch
+# line differential is, by definition, where the tooth's crown arc is
+# centred). If this ever fails, the profile and the belt geometry have
+# drifted apart -- that's a real bug to investigate, not a tolerance to
+# widen. See revB §3.
+assert FLANK_CENTRE_Y == BELT_PLD, "FLANK_CENTRE_Y must equal BELT_PLD -- see revB §3"
+
+TOOTH_HEIGHT = FLANK_CENTRE_Y + FLANK_RADIUS   # mm, derived, 2.0615
+assert abs(TOOTH_HEIGHT - 2.06) < 0.01, "TOOTH_HEIGHT drifted from the published HTD-5M figure"
+
+LAND_WIDTH = BELT_PITCH - 2 * math.sqrt(
+    (FLANK_RADIUS + ROOT_RADIUS) ** 2 - (ROOT_RADIUS - FLANK_CENTRE_Y) ** 2
+)   # mm, derived, 1.17 -- see revB §3 for the root-fillet-centre construction
+
+GROOVE_CLEARANCE = 0.10   # mm, tune on the printer
+
+# --- Pulley (printed) -- phase3-cad-spec.md §4 --------------------------
+
+PULLEY_OD = PULLEY_PD - 2 * BELT_PLD   # mm, derived, 37.054...
+PULLEY_BORE = 8.0                 # mm
+PULLEY_BORE_CLEARANCE = 0.15      # mm, printed hole runs undersize
+PULLEY_HUB_DIA = 22.0             # mm
+PULLEY_HUB_LENGTH = 10.0          # mm, beyond the toothed face
+PULLEY_GRUB_M = 4.0               # mm, M4, into a heat-set insert
+PULLEY_INSERT_DIA = 5.6           # mm
+PULLEY_INSERT_DEPTH = 8.0         # mm
+
+# --- Belt (derived, phase 3) --------------------------------------------
+
+BELT_BACK_THICKNESS = BELT_THICKNESS - TOOTH_HEIGHT   # mm, derived, 1.74
+assert BELT_PLD < BELT_BACK_THICKNESS, "pitch line must fall inside the belt's backing"
+
+# --- Calibration coupon -- phase3-cad-spec.md §7 ------------------------
+
+COUPON_LENGTH = 40.0       # mm
+COUPON_GROOVE_COUNT = 5    # count
+
 # --- Machine ------------------------------------------------------------
 
 INCLINE = 40.0        # deg, from horizontal
@@ -87,6 +132,8 @@ SKIRT_INSET = 38.0     # mm, from centreline
 
 PRINT_ROT_PLAIN = (180.0, 0.0, 0.0)     # deg, top face down, tabs up
 PRINT_ROT_CLEATED = (180.0, 0.0, 0.0)   # deg, cleat tip down, tabs up
+PRINT_ROT_PULLEY = (0.0, 0.0, 0.0)      # deg, hub end down, axis vertical -- native orientation
+PRINT_ROT_COUPON = (0.0, 0.0, 0.0)      # deg, flat on the bed -- native orientation
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------
