@@ -11,9 +11,10 @@ pulley) are specified but not yet built beyond their parameters.
 ## Spec authority
 
 - Specs are numbered by phase, each depending on the earlier ones.
-  Phase 1: `phase1-cad-spec.md` (rev A) -> `-revB.md` -> `-revC.md`
-  (current for the slat; each rev is a diff against the previous, not a
-  standalone rewrite, so all three are still needed). Phase 2:
+  Phase 1: `phase1-cad-spec.md` (rev A) -> `-revB.md` -> `-revC.md` ->
+  `-revD.md` (current for the slat and the belt; each rev is a diff against
+  the previous, not a standalone rewrite, so all four are still needed.
+  Rev D also renumbers the belt-dependent tables of phases 2-4). Phase 2:
   `phase2-cad-spec.md`. Phase 3: `phase3-cad-spec.md` -> `-revB.md`.
   Phase 4: `phase4-cad-spec.md`. Where any two conflict, the latest rev of
   the latest phase wins.
@@ -22,26 +23,25 @@ pulley) are specified but not yet built beyond their parameters.
 
 ## Current implementation status
 
-- **Phase 1 (slat): done.** `params.py` matches rev C §3; every rev B §5
-  assertion is checked with rev C's numbers by both `checks.py` and
+- **Phase 1 (slat): done.** `params.py` matches rev D §3 (HTD-3M x 15mm x
+  828mm belt, 40-tooth pulley, 18mm slat pitch, 46 slats); every rev B §5
+  assertion is checked with rev D's numbers by both `checks.py` and
   `tests/`, and `export.py` writes the two slat STLs.
 - **Phase 2 (skirts, posts): not built.** Only the bridge-plate subset of
   its parameters and `plate_top_offset()`/`plate_t()` exist, because phase
   4 needs them. Skirt and post parameters are still rev B's provisional
   block.
-- **Phase 3 (profile, belt, pulley): parameters only**, committed on the
-  `phase3-belt-pulley` branch. No `profile.py`, `parts/pulley.py` or
-  `parts/belt.py` yet.
-- **Phase 4 (assembly framework): done**, with four spec deviations
+- **Phase 3 (profile, belt, pulley): parameters only**, renumbered for
+  HTD-3M by rev D. No `profile.py`, `parts/pulley.py` or `parts/belt.py`
+  yet.
+- **Phase 4 (assembly framework): done**, with three live spec deviations
   recorded in `sorter/README.md` ("Phase 4 resolutions"): `at()` offsets
-  are now measured from the shaft axis; `PLATE_LENGTH` is `FRAME_WIDTH`,
-  not `FRAME_INNER_WIDTH`; the frame bounding-box check is done in the
-  frame's local frame; and the plates-don't-collide check is a strict
-  expected failure until the `CENTRE_DIST` layout question (rev C §8) is
-  settled.
-- Open: `CENTRE_DIST` (layout decision, rev C §8) and
-  `SHAFT_HEIGHT_ABOVE_PLATE` (measurement, rev B §8). Both are
-  single-parameter changes; nothing downstream hard-codes them.
+  are measured from the shaft axis; `PLATE_LENGTH` is `FRAME_WIDTH`, not
+  `FRAME_INNER_WIDTH`; the frame bounding-box check is done in the frame's
+  local frame. The fourth (plates overlapping at rev C's 135mm centre
+  distance) was resolved by rev D's belt.
+- Open: `SHAFT_HEIGHT_ABOVE_PLATE` (measurement, rev B §8), and the
+  physical saddle fit on the new 2.4mm-thick belt (rev D §7).
 
 If a later phase or revision changes the picture, this list is the thing to
 update once the migration is done.

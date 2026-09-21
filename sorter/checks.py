@@ -19,7 +19,7 @@ from utils import bbox_size, clash, contains, volume_cm3
 def _check_parameter_consistency():
     assert p.BELT_LOOP_LENGTH % p.BELT_PITCH == 0
     assert p.BELT_LOOP_LENGTH % p.SLAT_PITCH == 0
-    assert p.SLAT_COUNT == 26
+    assert p.SLAT_COUNT == 46
     assert abs(2 * p.CENTRE_DIST + math.pi * p.PULLEY_PD - p.BELT_LOOP_LENGTH) < 1e-6
     assert (p.BELT_WIDTH - p.PULLEY_FACE_WIDTH) / 2 >= 2.0
     assert p.CLEAT_LENGTH < p.SLAT_LENGTH
@@ -50,35 +50,35 @@ def _check_geometry_module():
     assert abs(g.run_direction().length - 1.0) < 1e-9
     assert abs(g.run_normal().length - 1.0) < 1e-9
     assert abs(g.run_direction().dot(g.run_normal())) < 1e-9
-    assert abs(g.belt_back_radius() - 22.327) < tol
+    assert abs(g.belt_back_radius() - 21.118) < tol
     assert abs(g.at(0).position.Y) < 1e-9                      # offset origin is the shaft axis
     assert abs(g.at(0, g.belt_back_radius()).position.Y - g.belt_back_radius() * math.cos(math.radians(p.INCLINE))) < tol
     assert g.slat_t(0) == 0.0
-    assert abs(g.slat_t(3) - 45.0) < 1e-9
-    assert g.is_cleated(0) and not g.is_cleated(1) and not g.is_cleated(2) and g.is_cleated(3)
-    assert sum(g.is_cleated(i) for i in range(p.SLAT_COUNT)) == 9
+    assert abs(g.slat_t(3) - 54.0) < 1e-9
+    assert g.is_cleated(0) and not g.is_cleated(1) and g.is_cleated(2) and not g.is_cleated(3)
+    assert sum(g.is_cleated(i) for i in range(p.SLAT_COUNT)) == 23
 
 
 def _check_slat_bounding_box():
     tol = 0.02
     plain = bbox_size(slat(False))
-    assert all(abs(a - b) < tol for a, b in zip(plain, (13.0, 9.0, 80.0)))
+    assert all(abs(a - b) < tol for a, b in zip(plain, (16.0, 9.0, 80.0)))
     cleated = bbox_size(slat(True))
-    assert all(abs(a - b) < tol for a, b in zip(cleated, (13.0, 21.0, 80.0)))
+    assert all(abs(a - b) < tol for a, b in zip(cleated, (16.0, 21.0, 80.0)))
 
 
 def _check_volume():
-    assert 3.5 <= volume_cm3(slat(False)) <= 4.2
-    assert 9.6 <= volume_cm3(slat(True)) <= 10.6
+    assert 3.9 <= volume_cm3(slat(False)) <= 4.6
+    assert 10.0 <= volume_cm3(slat(True)) <= 11.0
     assert volume_cm3(slat(True)) > volume_cm3(slat(False))
 
 
 def _check_probe_points():
     s = slat(False)
     assert contains(s, (0, 1.5, 0))
-    assert contains(s, (0, -3, 24.4))       # inner tab
-    assert contains(s, (0, -3, 35.6))       # outer tab
-    assert not contains(s, (0, -3, 30))     # saddle mouth, hollow
+    assert contains(s, (0, -3, 18.35))      # inner tab
+    assert contains(s, (0, -3, 35.65))      # outer tab
+    assert not contains(s, (0, -3, 27))     # saddle mouth, hollow
     assert not contains(s, (0, -3, 0))
     assert not contains(s, (0, 8, 0))
 
@@ -170,13 +170,9 @@ def _check_assembly_framework():
 
 # Checks known to fail for a recorded reason. A check listed here counts as
 # XFAIL when it fails and as a failure of the run when it unexpectedly
-# passes -- at which point remove it from this table.
-_EXPECTED_FAILURES = {
-    "plates don't collide with each other": (
-        f"CENTRE_DIST = {p.CENTRE_DIST:g} puts {p.PLATE_STATIONS} plates {p.CENTRE_DIST / (p.PLATE_STATIONS - 1):g} mm "
-        f"apart but each is {p.PLATE_WIDTH:g} mm wide -- open layout question, rev C §8"
-    ),
-}
+# passes -- at which point remove it from this table. Empty since rev D
+# closed the CENTRE_DIST question.
+_EXPECTED_FAILURES: dict[str, str] = {}
 
 _CHECKS = [
     ("parameter consistency", _check_parameter_consistency),

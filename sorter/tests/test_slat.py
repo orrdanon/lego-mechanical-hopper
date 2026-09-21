@@ -6,19 +6,19 @@ from utils import bbox_size, clash, contains, volume_cm3
 
 
 def test_plain_bbox():
-    assert bbox_size(slat(False)) == approx((13.0, 9.0, 80.0), abs=0.02)
+    assert bbox_size(slat(False)) == approx((16.0, 9.0, 80.0), abs=0.02)
 
 
 def test_cleated_bbox():
-    assert bbox_size(slat(True)) == approx((13.0, 21.0, 80.0), abs=0.02)
+    assert bbox_size(slat(True)) == approx((16.0, 21.0, 80.0), abs=0.02)
 
 
 def test_plain_volume():
-    assert 3.5 <= volume_cm3(slat(False)) <= 4.2
+    assert 3.9 <= volume_cm3(slat(False)) <= 4.6
 
 
 def test_cleated_volume():
-    assert 9.6 <= volume_cm3(slat(True)) <= 10.6
+    assert 10.0 <= volume_cm3(slat(True)) <= 11.0
 
 
 def test_cleated_heavier_than_plain():
@@ -28,9 +28,9 @@ def test_cleated_heavier_than_plain():
 def test_plain_probe_points():
     s = slat(False)
     assert contains(s, (0, 1.5, 0))
-    assert contains(s, (0, -3, 24.4))       # inner tab
-    assert contains(s, (0, -3, 35.6))       # outer tab
-    assert not contains(s, (0, -3, 30))     # saddle mouth, hollow
+    assert contains(s, (0, -3, 18.35))      # inner tab
+    assert contains(s, (0, -3, 35.65))      # outer tab
+    assert not contains(s, (0, -3, 27))     # saddle mouth, hollow
     assert not contains(s, (0, -3, 0))
     assert not contains(s, (0, 8, 0))
 

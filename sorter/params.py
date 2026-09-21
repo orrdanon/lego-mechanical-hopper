@@ -7,39 +7,40 @@ at the call site.
 
 Units are millimetres and degrees everywhere.
 
-Implements phase1-cad-spec-revB.md plus phase1-cad-spec-revC.md (repo root),
-the parameter tables of phase3-cad-spec-revB.md, and the frame/bridge-plate
-subset of phase2-cad-spec.md needed by phase4-cad-spec.md.
+Implements phase1-cad-spec.md through -revD.md (repo root), the parameter
+tables of phase3-cad-spec-revB.md renumbered for the rev D belt, and the
+frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md.
 One value remains provisional pending real hardware: `SHAFT_HEIGHT_ABOVE_PLATE`
-(see the note beside it). `BELT_LOOP_LENGTH` is now the real belt bought (rev
-C), but the `CENTRE_DIST` that follows from it is an open machine-layout
-question, not a guess -- see rev C §8 and `sorter/README.md`.
+(see the note beside it). The belt is the HTD-3M x 15mm x 828mm loop chosen
+in rev D; `CENTRE_DIST` follows from it and is no longer an open question.
 """
 
 import math
 
 # --- Belt and drive ---------------------------------------------------
 
-BELT_PROFILE = "HTD-5M"          # informational
-BELT_PITCH = 5.0                 # mm, tooth pitch
-BELT_LOOP_LENGTH = 390.0         # mm, stock closed loop, 78 teeth -- real belt bought, HTD-5M x 9mm (rev C)
-BELT_WIDTH = 9.0                 # mm
-BELT_THICKNESS = 3.8             # mm, tooth tip to back
-BELT_PLD = 0.5715                # mm, pitch line differential, HTD-5M
-PULLEY_TEETH = 24
+BELT_PROFILE = "HTD-3M"          # informational -- rev D, was HTD-5M
+BELT_PITCH = 3.0                 # mm, tooth pitch
+BELT_LOOP_LENGTH = 828.0         # mm, stock closed loop, 276 teeth -- the belt chosen in rev D, HTD-3M x 15mm
+BELT_WIDTH = 15.0                # mm
+BELT_THICKNESS = 2.4             # mm, tooth tip to back, published HTD-3M figure (some sheets say 2.44) -- caliper it
+BELT_PLD = 0.381                 # mm, pitch line differential, HTD-3M
+PULLEY_TEETH = 40                # 40 x 3mm = 120mm circumference, the same PD as rev C's 24 x 5mm
 PULLEY_FACE_WIDTH = 5.0          # mm, narrower than the belt, deliberately; printed part
-BELT_SPACING = 60.0              # mm, centre to centre of the two belts
+BELT_SPACING = 54.0              # mm, centre to centre of the two belts -- rev D, was 60; keeps the 15mm belt's tabs 2mm inside the slat ends
 
 PULLEY_PD = PULLEY_TEETH * BELT_PITCH / math.pi   # mm, 38.1972...
-CENTRE_DIST = (BELT_LOOP_LENGTH - math.pi * PULLEY_PD) / 2   # mm, 135.0 -- short span, unconfirmed against machine layout, see rev C §8
+CENTRE_DIST = (BELT_LOOP_LENGTH - math.pi * PULLEY_PD) / 2   # mm, 354.0 -- rev D; the rev C layout question is closed
 
-# --- Tooth profile (HTD-5M) -- phase3-cad-spec-revB.md -----------------
+# --- Tooth profile (HTD-3M) -- phase3-cad-spec-revB.md, renumbered by rev D --
 # Closed-form: a single flank arc reaching the apex directly, blended into
 # the land by a root fillet on each side. No separate tip arc, no solver.
+# Rev D starting values: FLANK_RADIUS chosen so TOOTH_HEIGHT hits the
+# published 3M tooth height (1.17), ROOT_RADIUS scaled 3/5 from the 5M guess.
 
-FLANK_RADIUS = 1.49       # mm -- APPROXIMATE, tune per revB §7
-ROOT_RADIUS = 0.43        # mm -- APPROXIMATE, tune per revB §7
-FLANK_CENTRE_Y = 0.5715   # mm, flank arc centre height above the land
+FLANK_RADIUS = 0.79       # mm -- APPROXIMATE, tune per revB §7
+ROOT_RADIUS = 0.26        # mm -- APPROXIMATE, tune per revB §7
+FLANK_CENTRE_Y = 0.381    # mm, flank arc centre height above the land
 
 # FLANK_CENTRE_Y and BELT_PLD are the same physical offset (the belt's pitch
 # line differential is, by definition, where the tooth's crown arc is
@@ -48,18 +49,18 @@ FLANK_CENTRE_Y = 0.5715   # mm, flank arc centre height above the land
 # widen. See revB §3.
 assert FLANK_CENTRE_Y == BELT_PLD, "FLANK_CENTRE_Y must equal BELT_PLD -- see revB §3"
 
-TOOTH_HEIGHT = FLANK_CENTRE_Y + FLANK_RADIUS   # mm, derived, 2.0615
-assert abs(TOOTH_HEIGHT - 2.06) < 0.01, "TOOTH_HEIGHT drifted from the published HTD-5M figure"
+TOOTH_HEIGHT = FLANK_CENTRE_Y + FLANK_RADIUS   # mm, derived, 1.171
+assert abs(TOOTH_HEIGHT - 1.17) < 0.01, "TOOTH_HEIGHT drifted from the published HTD-3M figure"
 
 LAND_WIDTH = BELT_PITCH - 2 * math.sqrt(
     (FLANK_RADIUS + ROOT_RADIUS) ** 2 - (ROOT_RADIUS - FLANK_CENTRE_Y) ** 2
-)   # mm, derived, 1.17 -- see revB §3 for the root-fillet-centre construction
+)   # mm, derived, 0.91 -- see revB §3 for the root-fillet-centre construction
 
 GROOVE_CLEARANCE = 0.10   # mm, tune on the printer
 
 # --- Pulley (printed) -- phase3-cad-spec.md §4 --------------------------
 
-PULLEY_OD = PULLEY_PD - 2 * BELT_PLD   # mm, derived, 37.054...
+PULLEY_OD = PULLEY_PD - 2 * BELT_PLD   # mm, derived, 37.435...
 PULLEY_BORE = 8.0                 # mm
 PULLEY_BORE_CLEARANCE = 0.15      # mm, printed hole runs undersize
 PULLEY_HUB_DIA = 22.0             # mm
@@ -70,7 +71,7 @@ PULLEY_INSERT_DEPTH = 8.0         # mm
 
 # --- Belt (derived, phase 3) --------------------------------------------
 
-BELT_BACK_THICKNESS = BELT_THICKNESS - TOOTH_HEIGHT   # mm, derived, 1.74
+BELT_BACK_THICKNESS = BELT_THICKNESS - TOOTH_HEIGHT   # mm, derived, 1.23
 assert BELT_PLD < BELT_BACK_THICKNESS, "pitch line must fall inside the belt's backing"
 
 # --- Calibration coupon -- phase3-cad-spec.md §7 ------------------------
@@ -120,20 +121,21 @@ PLATE_BOLT_Z = FRAME_WIDTH / 2 - FRAME_PROFILE / 2   # mm, 127.0, on the rails' 
 
 # --- Slat -----------------------------------------------------------------
 
-SLAT_PITCH = 15.0      # mm, 3 belt teeth -- rev C, was 4 teeth/20mm; 78-tooth belt isn't divisible by 4
+SLAT_PITCH = 18.0      # mm, 6 belt teeth -- rev D; divides the 828mm belt into 46 slats
 SLAT_LENGTH = 80.0     # mm, across the machine, local z
-SLAT_WIDTH = 13.0      # mm, along the run, local x -- rev C, keeps the 2mm inter-slat gap
+SLAT_WIDTH = 16.0      # mm, along the run, local x -- rev D, keeps the 2mm inter-slat gap
 SLAT_THICKNESS = 3.0   # mm, local y
-CLEAT_EVERY = 3        # every third slat is cleated
+CLEAT_EVERY = 2        # every second slat is cleated -- rev D; 46 isn't divisible by 3
 CLEAT_HEIGHT = 12.0    # mm, above the slat top face
 CLEAT_WIDTH_ROOT = 10.0    # mm, along local x, at the slat surface
 CLEAT_WIDTH_TIP = 4.0      # mm, along local x, at the top -- drafted for printing
 CLEAT_LENGTH = 74.0        # mm, along local z, centred
 CLEAT_ROOT_FILLET = 1.0    # mm, both sides
 
-SLAT_COUNT = BELT_LOOP_LENGTH / SLAT_PITCH   # count, 26
+SLAT_COUNT = BELT_LOOP_LENGTH / SLAT_PITCH   # count, 46
 assert SLAT_COUNT == int(SLAT_COUNT), "BELT_LOOP_LENGTH must be an integer multiple of SLAT_PITCH"
 SLAT_COUNT = int(SLAT_COUNT)
+assert SLAT_COUNT % CLEAT_EVERY == 0, "cleat pattern must repeat cleanly across the belt seam"
 
 # --- Saddle -----------------------------------------------------------------
 # Tab z-positions derive from BELT_WIDTH and SADDLE_INTERFERENCE alone (no
@@ -141,7 +143,7 @@ SLAT_COUNT = int(SLAT_COUNT)
 
 SADDLE_TAB_THICKNESS = 2.5    # mm, along local z
 SADDLE_TAB_DEPTH = 6.0        # mm, into negative local y
-SADDLE_TAB_LENGTH = 12.0      # mm, along local x, centred
+SADDLE_TAB_LENGTH = 7.0       # mm, along local x, centred -- rev D, was 12; must grip <= 2.5 teeth (7.5mm at 3mm pitch)
 SADDLE_INTERFERENCE = 0.2     # mm, total, so nominal gap = BELT_WIDTH - 0.2
 SADDLE_LIP_PROJECTION = 0.8   # mm, inward, at the tab tip
 SADDLE_LIP_HEIGHT = 1.0       # mm, along local y

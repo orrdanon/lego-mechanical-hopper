@@ -26,7 +26,7 @@ def test_run_direction_and_normal_are_right_handed():
 
 
 def test_belt_back_radius():
-    assert belt_back_radius() == approx(22.327, abs=0.01)
+    assert belt_back_radius() == approx(21.118, abs=0.01)
 
 
 def test_shaft_axis_tail_is_origin():
@@ -81,15 +81,16 @@ def test_slat_t_zero():
 
 
 def test_slat_t_three():
-    assert slat_t(3) == approx(45.0)
+    assert slat_t(3) == approx(54.0)
 
 
 def test_is_cleated_pattern():
-    assert is_cleated(0) and not is_cleated(1) and not is_cleated(2) and is_cleated(3)
+    assert is_cleated(0) and not is_cleated(1) and is_cleated(2) and not is_cleated(3)
+    assert is_cleated(SLAT_COUNT - 2) and not is_cleated(SLAT_COUNT - 1)   # clean across the seam
 
 
 def test_is_cleated_count():
-    assert sum(is_cleated(i) for i in range(SLAT_COUNT)) == 9
+    assert sum(is_cleated(i) for i in range(SLAT_COUNT)) == 23
 
 
 # --- Bridge plates and frame -- phase 4 §8.1 -----------------------------------

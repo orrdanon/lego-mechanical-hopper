@@ -77,15 +77,9 @@ def test_bolt_holes_land_in_the_rail_slots():
                 assert not contains(f, (probe.X, probe.Y, probe.Z))
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        f"CENTRE_DIST = {CENTRE_DIST:g} puts {PLATE_STATIONS} plates of PLATE_WIDTH = {PLATE_WIDTH:g} "
-        f"at a {CENTRE_DIST / (PLATE_STATIONS - 1):g} mm pitch, so neighbours overlap. "
-        "Open layout question, rev C §8 -- resolves itself once CENTRE_DIST is settled."
-    ),
-)
 def test_plates_do_not_collide_with_each_other():
+    # Needs CENTRE_DIST / (PLATE_STATIONS - 1) > PLATE_WIDTH; rev D's belt gives 88.5 > 45.
+    assert CENTRE_DIST / (PLATE_STATIONS - 1) > PLATE_WIDTH
     placed = [_placed(i) for i in range(PLATE_STATIONS)]
     for a, b in combinations(placed, 2):
         assert not clash(a, b)

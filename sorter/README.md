@@ -123,7 +123,7 @@ be fixed rather than worked around (phase 4 §10).
 
 ## Phase 4 resolutions
 
-Four places where the phase 4 spec conflicts with the repo or with itself,
+Four places where the phase 4 spec conflicted with the repo or with itself,
 resolved from the spec's named-parameter definitions rather than its
 worked examples, per the convention in `CLAUDE.md`.
 
@@ -163,18 +163,15 @@ not 552. The check asserts that projection, and the exact
 own local frame, as §8.2 invites, by undoing `at(frame_t_centre(),
 rail_top_offset())`.
 
-### Plate overlap and `CENTRE_DIST`
+### Plate overlap and `CENTRE_DIST` (resolved by rev D)
 
-Phases 2-4 were written against the old 390 mm centre distance (phase 2's
-`POST_SPACING = CENTRE_DIST/4 = 97.5`; phase 4's 552 mm frame). With the
-real belt, `CENTRE_DIST = 135`, so five 45 mm plates at a 33.75 mm pitch
-overlap their neighbours and phase 4 §8.5 cannot pass. This is the open
-layout question of rev C §8 becoming physical, not a modelling error, so
-the numbers were left as specified: the §8.5 check is a `strict=True`
-xfail in `tests/test_bridge_plate.py` and an `_EXPECTED_FAILURES` entry in
-`checks.py`, both citing the reason. Settle `CENTRE_DIST` (longer belt,
-idler, or narrower plates / fewer stations) and the check goes green on its
-own, at which point both entries must be removed.
+Phases 2-4 were written against a 390mm centre distance; rev C's belt gave
+135mm, so five 45mm plates at a 33.75mm pitch overlapped and phase 4 §8.5
+could not pass. It was carried as a strict expected failure until rev D
+changed the belt (see "Belt, slat pitch and width, rev D"). With
+`CENTRE_DIST = 354` the pitch is 88.5mm and §8.5 passes; the xfail and the
+`_EXPECTED_FAILURES` entry have been removed. The mechanism stays in
+`checks.py` for the next such case.
 
 ## Missing parameters
 
@@ -187,50 +184,55 @@ One value in `params.py` is a best guess, not a measurement, per rev B §8:
 - `SHAFT_HEIGHT_ABOVE_PLATE` (48mm) -- depends on the pillow blocks actually
   bought; measure before modelling the standoff that sets this height.
 
-`BELT_LOOP_LENGTH` is no longer provisional (rev C): it's the real belt
-bought, a 5mm HTD-pitch, 9mm wide, 390mm pitch length, 78-tooth timing belt.
-See "Slat pitch and width, rev C" and "Open: centre distance" below for what
-that value changes and what it leaves unresolved.
+The belt is the HTD-3M, 15mm wide, 828mm pitch length, 276-tooth loop chosen
+in rev D. Its thickness (2.4) and pitch line differential (0.381) are
+catalogue figures for the profile, not measurements of this belt -- caliper
+it. See "Belt, slat pitch and width, rev D" below for what the belt drives.
 
-`SADDLE_INTERFERENCE` and `CLEAT_HEIGHT` are also unvalidated against real
-hardware (rev B §8) -- the acceptance checks confirm internal consistency,
-not a physical fit. That fit is still the gate before phase 2: print one
-plain slat and one cleated, clip them to a scrap of 9mm HTD-5M, and run them
-round a pulley before modelling anything further.
+`SADDLE_INTERFERENCE`, `SADDLE_TAB_DEPTH` and `CLEAT_HEIGHT` are also
+unvalidated against real hardware (rev B §8) -- the acceptance checks
+confirm internal consistency, not a physical fit. The 6mm tab depth was
+sized around a 3.8mm belt and now wraps a 2.4mm one. That fit is still the
+gate before phase 2: print one plain slat and one cleated, clip them to a
+scrap of the 15mm HTD-3M belt, and run them round a pulley before modelling
+anything further.
 
-## Slat pitch and width, rev C
+## Belt, slat pitch and width, rev D
 
-`BELT_LOOP_LENGTH = 390` (78 teeth) isn't divisible by 4, so rev B's
-`SLAT_PITCH = 20` ("4 belt teeth") no longer divides it evenly -- rev B
-§5.1's `BELT_LOOP_LENGTH % SLAT_PITCH == 0` would fail. Rev C moves to 3
-teeth per slat, `SLAT_PITCH = 15`, which divides 390mm evenly (26 slats).
+Rev C's 390mm HTD-5M loop forced a 135mm centre distance that could not
+carry five 45mm bridge plates (phase 4 made this physical). Rev D changes
+the belt to an HTD-3M x 15mm x 828mm loop, 276 teeth, and follows every
+parameter that depends on it. `phase1-cad-spec-revD.md` §2 has the full
+changelog and reasoning; the short version:
 
-`SLAT_WIDTH` then has to shrink to stay under the new, smaller pitch.
-Rev C keeps the same 2mm inter-slat gap rev B used (`20 - 18 = 2`), giving
-`SLAT_WIDTH = 15 - 2 = 13`. This is a choice, not something forced by the
-spec's other assertions -- any value in `(12, 15)` would satisfy
-`SLAT_WIDTH < SLAT_PITCH` and `SLAT_PITCH - SLAT_WIDTH <= 3.0` -- but
-preserving the existing gap rather than picking a new one keeps the
-slat-to-slat spacing behaviour unchanged from rev B.
+- `PULLEY_TEETH = 40`, because 40 x 3mm is the same 120mm circumference as
+  24 x 5mm, so the pitch diameter and every clearance built on it are
+  unchanged. `CENTRE_DIST` becomes 354mm.
+- `SLAT_PITCH = 18` (6 teeth) is the smallest whole-tooth pitch dividing
+  828mm that leaves room for the 10mm cleat root; `SLAT_WIDTH = 16` keeps
+  the 2mm gap; 46 slats.
+- `CLEAT_EVERY = 2`: 46 isn't divisible by 3, and "every third" would put
+  two cleats 18mm apart at the belt seam. A new `params.py` assertion,
+  `SLAT_COUNT % CLEAT_EVERY == 0`, guards that.
+- `BELT_SPACING = 54` (was 60): a 15mm belt's outer tab would otherwise end
+  0.1mm from the slat end against the 2mm rule. Moving the belts inward was
+  chosen over lengthening the slat so the slat, cleat and phase 2 skirt
+  numbers stay put.
+- `SADDLE_TAB_LENGTH = 7` (was 12): rev B's "grips at most 2.5 teeth" is
+  7.5mm at a 3mm pitch.
+- Phase 3 profile radii renumbered so `TOOTH_HEIGHT` is the published 1.17mm
+  for HTD-3M; still approximate, still calibrated per phase 3 §7.
 
-The bounding-box, volume, and cleated-count acceptance numbers in
-`checks.py`/`tests/` all follow from this and were recomputed from the
-actual built geometry (see `phase1-cad-spec-revC.md` §5), not scaled by
-hand -- the saddle tabs and cleat don't shrink with `SLAT_WIDTH`, so volume
-in particular doesn't scale linearly with it.
+The bounding-box, volume, probe-point and cleated-count numbers in
+`checks.py`/`tests/` were recomputed from the built geometry (rev D §5),
+as rev C did, not scaled.
 
-## Open: centre distance
+## Centre distance
 
-`CENTRE_DIST` derives from `BELT_LOOP_LENGTH` (rev B changelog #10). With
-the real 390mm belt, `CENTRE_DIST = 135.0mm` -- under half of rev A's old
-fixed 390mm. This is arithmetically consistent and passes every check, but
-**it has not been confirmed against the hopper/discharge layout**. Unlike
-`SHAFT_HEIGHT_ABOVE_PLATE`, this isn't a missing measurement waiting on a
-part purchase; it's an open layout decision (a longer belt, an idler
-pulley, or repositioning within the frame could each resolve it
-differently). Don't treat `CENTRE_DIST` as final, and don't build anything
-downstream that assumes a 135mm span is enough, before that decision is
-made.
+Closed by rev D. `CENTRE_DIST` derives from `BELT_LOOP_LENGTH` (rev B
+changelog #10) and is 354.0mm with the 828mm belt, which fits the 552mm
+frame with 138mm to spare past the head shaft and spaces the five bridge
+plates 88.5mm apart. Rev C §8's open layout question no longer applies.
 
 ## Saddle tab z-positions
 
