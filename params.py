@@ -7,7 +7,7 @@ at the call site.
 
 Units are millimetres and degrees everywhere.
 
-Implements phase1-cad-spec.md through -revD.md (repo root), the parameter
+Implements docs/specs/phase1-cad-spec.md through -revD.md, the parameter
 tables of phase3-cad-spec-revB.md renumbered for the rev D belt, and the
 frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md.
 One value remains provisional pending real hardware: `SHAFT_HEIGHT_ABOVE_PLATE`
@@ -106,7 +106,7 @@ assert FRAME_T_START + FRAME_LENGTH > CENTRE_DIST + 60, "frame too short to carr
 
 # --- Bridge plates -- phase2-cad-spec.md §4, phase4-cad-spec.md §6 ----------
 # Plywood, cut not printed. PLATE_LENGTH is FRAME_WIDTH, not FRAME_INNER_WIDTH
-# as phase 2 §4 tabulates -- see sorter/README.md "Bridge plate length".
+# as phase 2 §4 tabulates -- see README.md "Bridge plate length".
 
 PLATE_THICKNESS = 9.0      # mm, plywood
 PLATE_WIDTH = 45.0         # mm, along the run

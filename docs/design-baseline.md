@@ -7,7 +7,7 @@ This document describes what has been built and decided so far, so that a
 specification for the **timing belt model** and the **printed timing pulley**
 can be written against it. It is self-contained: it replaces the earlier
 phase specification files as the reference for this work. Where a number here
-and an older spec disagree, this document (and `sorter/params.py`, which it
+and an older spec disagree, this document (and `params.py`, which it
 is taken from) is correct.
 
 Every value is labelled one of:
@@ -283,7 +283,7 @@ belt-back radius of 21.118 eats into it directly.
 ## 7. The CAD project the specification has to fit
 
 Python, [build123d](https://github.com/gumyr/build123d) 0.11 (OpenCascade),
-under `sorter/`. Four layers, each importing only from the ones above it in
+at the repo root. Four layers, each importing only from the ones above it in
 this table:
 
 | Layer | Holds | Returns |

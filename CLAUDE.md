@@ -10,7 +10,7 @@ pulley) are specified but not yet built beyond their parameters.
 
 ## Spec authority
 
-- Specs are numbered by phase, each depending on the earlier ones.
+- Specs live in `docs/specs/`, numbered by phase, each depending on the earlier ones.
   Phase 1: `phase1-cad-spec.md` (rev A) -> `-revB.md` -> `-revC.md` ->
   `-revD.md` (current for the slat and the belt; each rev is a diff against
   the previous, not a standalone rewrite, so all four are still needed.
@@ -35,7 +35,7 @@ pulley) are specified but not yet built beyond their parameters.
   HTD-3M by rev D. No `profile.py`, `parts/pulley.py` or `parts/belt.py`
   yet.
 - **Phase 4 (assembly framework): done**, with three live spec deviations
-  recorded in `sorter/README.md` ("Phase 4 resolutions"): `at()` offsets
+  recorded in `README.md` ("Phase 4 resolutions"): `at()` offsets
   are measured from the shaft axis; `PLATE_LENGTH` is `FRAME_WIDTH`, not
   `FRAME_INNER_WIDTH`; the frame bounding-box check is done in the frame's
   local frame. The fourth (plates overlapping at rev C's 135mm centre
@@ -49,34 +49,35 @@ update once the migration is done.
 ## Repo layout
 
 ```
-phase1-cad-spec.md        rev A spec (superseded, kept as base document)
-phase1-cad-spec-revB.md   rev B spec (superseded, diff against rev A)
-phase1-cad-spec-revC.md   rev C spec (superseded, diff against rev B)
-phase1-cad-spec-revD.md   rev D spec (current for phase 1 and the belt, diff against rev C)
 docs/design-baseline.md   self-contained as-built summary for external readers (belt/pulley consultant);
                           derived from params.py -- regenerate its numbers when params change
-phase2-cad-spec.md        skirts and posts (not yet built)
-phase3-cad-spec.md        tooth profile, belt, pulley (rev A)
-phase3-cad-spec-revB.md   phase 3 rev B (current for phase 3, diff against rev A)
-phase4-cad-spec.md        assembly framework, frame, bridge plates (current)
-sorter/                   the build123d project (run all commands from here)
-  params.py               single source of truth for every dimension
-  geometry.py              pure functions: run direction, shaft axes, at(), plate/frame datums
-  parts/slat.py            the slat part (plain + cleated), pulley_envelope()
-  parts/bridge_plate.py    plywood bridge plate (reference solid, cut list not STL)
-  parts/frame.py           2020 aluminium frame (owned hardware, reference solid)
-  assembly.py              GROUPS dict of positioned Compounds; `python assembly.py [group ...] [--detail]`
-  cut_list.py              writes out/cut_list.txt for the plywood parts
-  utils.py                 bbox/volume/contains/clash helpers used by checks & tests
-  checks.py                human-facing runner of every acceptance assertion from the specs
-  tests/                   the same assertions as pytest tests
-  export.py                writes out/slat_plain.stl and out/slat_cleated.stl
+docs/specs/               the phase specs
+  phase1-cad-spec.md        rev A spec (superseded, kept as base document)
+  phase1-cad-spec-revB.md   rev B spec (superseded, diff against rev A)
+  phase1-cad-spec-revC.md   rev C spec (superseded, diff against rev B)
+  phase1-cad-spec-revD.md   rev D spec (current for phase 1 and the belt, diff against rev C)
+  phase2-cad-spec.md        skirts and posts (not yet built)
+  phase3-cad-spec.md        tooth profile, belt, pulley (rev A)
+  phase3-cad-spec-revB.md   phase 3 rev B (current for phase 3, diff against rev A)
+  phase4-cad-spec.md        assembly framework, frame, bridge plates (current)
+README.md                 setup, usage, and the recorded spec resolutions
+params.py                 single source of truth for every dimension
+geometry.py               pure functions: run direction, shaft axes, at(), plate/frame datums
+parts/slat.py             the slat part (plain + cleated), pulley_envelope()
+parts/bridge_plate.py     plywood bridge plate (reference solid, cut list not STL)
+parts/frame.py            2020 aluminium frame (owned hardware, reference solid)
+assembly.py               GROUPS dict of positioned Compounds; `python assembly.py [group ...] [--detail]`
+cut_list.py               writes out/cut_list.txt for the plywood parts
+utils.py                  bbox/volume/contains/clash helpers used by checks & tests
+checks.py                 human-facing runner of every acceptance assertion from the specs
+tests/                    the same assertions as pytest tests
+export.py                 writes out/slat_plain.stl and out/slat_cleated.stl
 ```
 
 ## Conventions
 
 - **No hard-coded dimensions outside `params.py`.** Every numeric
-  dimension used anywhere in `sorter/` must be imported from `params.py`.
+  dimension used anywhere in the code must be imported from `params.py`.
   If a part or check needs a new value, add it to `params.py` rather than
   inlining it.
 - **Four layers, reading downward only** (phase 4 §2.1): `params` imports
@@ -104,7 +105,7 @@ sorter/                   the build123d project (run all commands from here)
 - Where the spec's prose is ambiguous or internally inconsistent, resolve
   it from the spec's own named-parameter definitions rather than its
   worked examples, and record the resolution and reasoning in
-  `sorter/README.md` (see its "Saddle tab z-positions" and "Chamfer edge
+  `README.md` (see its "Saddle tab z-positions" and "Chamfer edge
   selection" sections for the existing pattern).
 - Physical test fit is still the real gate: rev B §8 is explicit that
   `SADDLE_INTERFERENCE` and `CLEAT_HEIGHT` are unvalidated guesses until a
@@ -114,8 +115,7 @@ sorter/                   the build123d project (run all commands from here)
 ## Workflow
 
 ```bash
-cd sorter
-source ../.venv/bin/activate   # or create one per sorter/README.md
+source .venv/bin/activate   # or create one per README.md
 python3 checks.py              # pass/fail per acceptance check
 python -m pytest                # same assertions, pytest form
 python3 export.py              # writes out/*.stl (gitignored)

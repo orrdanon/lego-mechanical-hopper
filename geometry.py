@@ -51,7 +51,7 @@ def at(t: float, offset: float = 0.0, lateral: float = 0.0) -> Location:
     `offset` is measured from the shaft axis, not the belt back face, so
     `at(t, 0)` is on the shaft and a slat on the carrying run is placed at
     `at(t, belt_back_radius())`. Every *_offset() datum below shares this
-    origin. See sorter/README.md "Offset origin".
+    origin. See README.md "Offset origin".
 
     The returned Location is oriented so that its local +x points along
     run_direction(), its local +y along run_normal(), and its local +z

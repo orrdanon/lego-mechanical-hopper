@@ -1,15 +1,15 @@
-# sorter
+# lego-mechanical-hopper
 
 Parametric build123d model of the LEGO-sorter feed elevator, structured as
 parts that assemble. Phase 1 built the conveyor slat (plain and cleated);
 phase 4 added the assembly framework with the aluminium frame and the
 plywood bridge plates as its first two groups. See the `phase*-cad-spec*.md`
-files at the repo root: each phase depends on the earlier ones, and each
+files in `docs/specs/`: each phase depends on the earlier ones, and each
 rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided (written
 for readers outside the project, and the input to the belt and pulley
-specification), see `../docs/design-baseline.md`.
+specification), see `docs/design-baseline.md`.
 
 ## Setup
 
@@ -19,7 +19,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Run everything below from this `sorter/` directory.
+Run everything below from the repo root.
 
 ## Viewing a part
 
@@ -206,7 +206,7 @@ anything further.
 Rev C's 390mm HTD-5M loop forced a 135mm centre distance that could not
 carry five 45mm bridge plates (phase 4 made this physical). Rev D changes
 the belt to an HTD-3M x 15mm x 828mm loop, 276 teeth, and follows every
-parameter that depends on it. `phase1-cad-spec-revD.md` §2 has the full
+parameter that depends on it. `docs/specs/phase1-cad-spec-revD.md` §2 has the full
 changelog and reasoning; the short version:
 
 - `PULLEY_TEETH = 40`, because 40 x 3mm is the same 120mm circumference as
