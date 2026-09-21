@@ -7,7 +7,9 @@ at the call site.
 
 Units are millimetres and degrees everywhere.
 
-Implements phase1-cad-spec-revB.md plus phase1-cad-spec-revC.md (repo root).
+Implements phase1-cad-spec-revB.md plus phase1-cad-spec-revC.md (repo root),
+the parameter tables of phase3-cad-spec-revB.md, and the frame/bridge-plate
+subset of phase2-cad-spec.md needed by phase4-cad-spec.md.
 One value remains provisional pending real hardware: `SHAFT_HEIGHT_ABOVE_PLATE`
 (see the note beside it). `BELT_LOOP_LENGTH` is now the real belt bought (rev
 C), but the `CENTRE_DIST` that follows from it is an open machine-layout
@@ -86,13 +88,35 @@ SHAFT_HEIGHT_ABOVE_PLATE = 48.0   # mm -- PROVISIONAL, depends on the pillow blo
 SHAFT_SPEED = 30.0     # rpm, gives 60 mm/s belt speed
 
 # --- Frame -- existing, uncut ---------------------------------------------
-# Recorded so later phases can position against it. Nothing in phase 1 uses these.
+# Owned hardware, modelled as a reference solid in phase 4 (phase4-cad-spec.md
+# §5), never exported.
 
 FRAME_LENGTH = 552.0       # mm
 FRAME_WIDTH = 274.0        # mm, overall
 FRAME_PROFILE = 20.0       # mm, 2020
 FRAME_INNER_WIDTH = FRAME_WIDTH - 2 * FRAME_PROFILE   # mm, 234.0
 FRAME_SLOT_WIDTH = 6.0     # mm, standard T-nut
+FRAME_SLOT_DEPTH = 6.0     # mm, cosmetic groove depth; the real T profile isn't modelled
+FRAME_END_LENGTH = FRAME_INNER_WIDTH   # mm, 234.0, end members span between the rails
+FRAME_T_START = -60.0      # mm, run parameter at the frame's tail end (phase 4 §3)
+
+# The frame must overhang the head shaft far enough to carry the motor.
+assert FRAME_T_START + FRAME_LENGTH > CENTRE_DIST + 60, "frame too short to carry the motor past the head shaft"
+
+# --- Bridge plates -- phase2-cad-spec.md §4, phase4-cad-spec.md §6 ----------
+# Plywood, cut not printed. PLATE_LENGTH is FRAME_WIDTH, not FRAME_INNER_WIDTH
+# as phase 2 §4 tabulates -- see sorter/README.md "Bridge plate length".
+
+PLATE_THICKNESS = 9.0      # mm, plywood
+PLATE_WIDTH = 45.0         # mm, along the run
+PLATE_LENGTH = FRAME_WIDTH   # mm, 274.0, across the machine, resting on both rail tops
+PLATE_COUNT_BEARING = 2    # count, tail and head, carry the pillow blocks
+PLATE_COUNT_SUPPORT = 3    # count, evenly spaced between, carry the skirt posts
+PLATE_STATIONS = PLATE_COUNT_BEARING + PLATE_COUNT_SUPPORT   # count, 5
+PLATE_BOLT_M = 5.0         # mm, M5 into frame T-nuts
+PLATE_BOLT_CLEARANCE_DIA = 5.5   # mm, standard M5 clearance hole
+PLATE_BOLT_X = 12.0        # mm, hole offset from the plate's centreline, along the run
+PLATE_BOLT_Z = FRAME_WIDTH / 2 - FRAME_PROFILE / 2   # mm, 127.0, on the rails' top-slot centrelines
 
 # --- Slat -----------------------------------------------------------------
 

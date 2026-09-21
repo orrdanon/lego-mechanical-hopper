@@ -51,7 +51,11 @@ def test_shaft_axis_rejects_bad_end():
 
 
 def test_at_zero_matches_incline_projection():
-    assert at(0).position.Y == approx(belt_back_radius() * math.cos(math.radians(INCLINE)), abs=0.01)
+    # offset is measured from the shaft axis: at(t, 0) is on the shaft
+    assert at(0).position.Y == approx(0.0, abs=1e-9)
+    assert at(0, belt_back_radius()).position.Y == approx(
+        belt_back_radius() * math.cos(math.radians(INCLINE)), abs=0.01
+    )
 
 
 def test_at_orientation_axes():
@@ -86,3 +90,53 @@ def test_is_cleated_pattern():
 
 def test_is_cleated_count():
     assert sum(is_cleated(i) for i in range(SLAT_COUNT)) == 9
+
+
+# --- Bridge plates and frame -- phase 4 §8.1 -----------------------------------
+
+from pytest import raises
+
+from geometry import frame_t_centre, frame_t_end, plate_role, plate_t, plate_top_offset, rail_lateral, rail_top_offset
+from params import FRAME_LENGTH, FRAME_T_START, PLATE_STATIONS, PLATE_THICKNESS, SHAFT_HEIGHT_ABOVE_PLATE
+
+
+def test_plate_top_offset_is_below_shaft_by_shaft_height():
+    assert plate_top_offset() == approx(-SHAFT_HEIGHT_ABOVE_PLATE)
+
+
+def test_rail_top_offset():
+    assert rail_top_offset() == approx(-57.0)
+    assert rail_top_offset() == approx(plate_top_offset() - PLATE_THICKNESS)
+
+
+def test_rail_lateral():
+    assert rail_lateral() == approx(127.0)
+
+
+def test_frame_t_centre_and_end():
+    assert frame_t_end() == approx(FRAME_T_START + FRAME_LENGTH)
+    assert frame_t_centre() == approx((FRAME_T_START + frame_t_end()) / 2)
+
+
+def test_plate_t_endpoints():
+    assert plate_t(0) == approx(0.0)
+    assert plate_t(PLATE_STATIONS - 1) == approx(CENTRE_DIST)
+
+
+def test_plate_t_is_evenly_spaced():
+    pitch = CENTRE_DIST / (PLATE_STATIONS - 1)
+    for i in range(PLATE_STATIONS):
+        assert plate_t(i) == approx(i * pitch)
+
+
+def test_plate_roles():
+    assert [plate_role(i) for i in range(PLATE_STATIONS)] == ["bearing", "support", "support", "support", "bearing"]
+
+
+def test_plate_t_rejects_out_of_range():
+    with raises(IndexError):
+        plate_t(PLATE_STATIONS)
+    with raises(IndexError):
+        plate_t(-1)
+    with raises(IndexError):
+        plate_role(PLATE_STATIONS)

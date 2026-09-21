@@ -44,19 +44,25 @@ def at(t: float, offset: float = 0.0, lateral: float = 0.0) -> Location:
     """A Location on the carrying run.
 
     t        distance along the run from the tail shaft axis, mm
-    offset   distance outward from the belt back face along run_normal, mm
+    offset   distance from the shaft axis along run_normal, mm; positive is
+             outward through the belt, negative is down towards the plates
     lateral  distance along machine Z, mm
+
+    `offset` is measured from the shaft axis, not the belt back face, so
+    `at(t, 0)` is on the shaft and a slat on the carrying run is placed at
+    `at(t, belt_back_radius())`. Every *_offset() datum below shares this
+    origin. See sorter/README.md "Offset origin".
 
     The returned Location is oriented so that its local +x points along
     run_direction(), its local +y along run_normal(), and its local +z
-    along machine +Z. Multiplying a part modelled in the slat local frame
-    by this Location places it correctly on the belt.
+    along machine +Z. Multiplying a part modelled in the spec's local frame
+    (+x along the run, +y out along the normal, +z across) by this Location
+    places it correctly with no extra rotation.
     """
-    radial = belt_back_radius() + offset
     position = (
         shaft_axis("tail")
         + run_direction() * t
-        + run_normal() * radial
+        + run_normal() * offset
         + Vector(0.0, 0.0, 1.0) * lateral
     )
     plane = Plane(origin=position, x_dir=run_direction(), z_dir=Vector(0.0, 0.0, 1.0))
@@ -71,3 +77,52 @@ def slat_t(index: int) -> float:
 def is_cleated(index: int) -> bool:
     """True if slat `index` carries a cleat."""
     return index % params.CLEAT_EVERY == 0
+
+
+# --- Bridge plates and frame -- phase 2 §5, phase 4 §4 -----------------------
+
+
+def plate_top_offset() -> float:
+    """Offset of the bridge plates' top faces from the shaft axis, along
+    run_normal. Negative, since the plates are below the shafts.
+    = -SHAFT_HEIGHT_ABOVE_PLATE = -48.0"""
+    return -params.SHAFT_HEIGHT_ABOVE_PLATE
+
+
+def rail_top_offset() -> float:
+    """Offset of the frame rails' top faces from the shaft axis, along
+    run_normal. Negative. = plate_top_offset() - PLATE_THICKNESS = -57.0"""
+    return plate_top_offset() - params.PLATE_THICKNESS
+
+
+def rail_lateral() -> float:
+    """Z of a rail's centreline. = FRAME_WIDTH/2 - FRAME_PROFILE/2 = 127.0"""
+    return params.FRAME_WIDTH / 2 - params.FRAME_PROFILE / 2
+
+
+def frame_t_centre() -> float:
+    """Run parameter at the frame's midpoint."""
+    return params.FRAME_T_START + params.FRAME_LENGTH / 2
+
+
+def frame_t_end() -> float:
+    """Run parameter at the frame's head end."""
+    return params.FRAME_T_START + params.FRAME_LENGTH
+
+
+def plate_t(index: int) -> float:
+    """Run parameter of bridge plate `index`, 0 at the tail shaft through
+    PLATE_STATIONS-1 (4) at the head shaft, evenly spaced.
+    Raises IndexError outside that range."""
+    if not 0 <= index < params.PLATE_STATIONS:
+        raise IndexError(f"plate index must be in 0..{params.PLATE_STATIONS - 1}, got {index}")
+    return index * params.CENTRE_DIST / (params.PLATE_STATIONS - 1)
+
+
+def plate_role(index: int) -> str:
+    """'bearing' for the end plates (0 and PLATE_STATIONS-1), 'support'
+    for the ones between. Raises IndexError outside 0..PLATE_STATIONS-1."""
+    plate_t(index)   # range check
+    if index in (0, params.PLATE_STATIONS - 1):
+        return "bearing"
+    return "support"

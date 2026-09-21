@@ -5,8 +5,13 @@ expressed as pytest tests under tests/; this is the manual runner."""
 import math
 import sys
 
+from itertools import combinations
+
 import geometry as g
 import params as p
+from assembly import COLOURS, GROUPS, assembly
+from parts.bridge_plate import bridge_plate
+from parts.frame import frame
 from parts.slat import pulley_envelope, slat
 from utils import bbox_size, clash, contains, volume_cm3
 
@@ -46,7 +51,8 @@ def _check_geometry_module():
     assert abs(g.run_normal().length - 1.0) < 1e-9
     assert abs(g.run_direction().dot(g.run_normal())) < 1e-9
     assert abs(g.belt_back_radius() - 22.327) < tol
-    assert abs(g.at(0).position.Y - g.belt_back_radius() * math.cos(math.radians(p.INCLINE))) < tol
+    assert abs(g.at(0).position.Y) < 1e-9                      # offset origin is the shaft axis
+    assert abs(g.at(0, g.belt_back_radius()).position.Y - g.belt_back_radius() * math.cos(math.radians(p.INCLINE))) < tol
     assert g.slat_t(0) == 0.0
     assert abs(g.slat_t(3) - 45.0) < 1e-9
     assert g.is_cleated(0) and not g.is_cleated(1) and not g.is_cleated(2) and g.is_cleated(3)
@@ -93,6 +99,85 @@ def _check_manifold():
     assert slat(True).is_valid
 
 
+# --- Phase 4: frame, bridge plates, assembly framework ---------------------
+
+
+def _placed_plate(i: int):
+    return bridge_plate(g.plate_role(i)).moved(g.at(g.plate_t(i), g.plate_top_offset()))
+
+
+def _check_frame_geometry():
+    assert abs(g.rail_top_offset() - (-57.0)) < 1e-9
+    assert abs(g.rail_lateral() - 127.0) < 1e-9
+    assert abs(g.plate_t(0)) < 1e-9
+    assert abs(g.plate_t(p.PLATE_STATIONS - 1) - p.CENTRE_DIST) < 1e-9
+    assert [g.plate_role(i) for i in range(p.PLATE_STATIONS)] == ["bearing", "support", "support", "support", "bearing"]
+    try:
+        g.plate_t(p.PLATE_STATIONS)
+    except IndexError:
+        pass
+    else:
+        raise AssertionError("plate_t must raise IndexError past the last station")
+
+
+def _check_frame():
+    f = frame()
+    assert f.is_valid
+    assert len(f.solids()) == 4
+    theta = math.radians(p.INCLINE)
+    longest = p.FRAME_LENGTH * math.cos(theta) + p.FRAME_PROFILE * math.sin(theta)
+    assert abs(sorted(bbox_size(f))[-1] - longest) < 0.5     # inclined, see README "Frame bounding box"
+    local = f.moved(g.at(g.frame_t_centre(), g.rail_top_offset()).inverse())
+    assert all(abs(a - b) < 0.02 for a, b in zip(bbox_size(local), (p.FRAME_LENGTH, p.FRAME_PROFILE, p.FRAME_WIDTH)))
+
+
+def _check_plates_sit_on_rails():
+    f = frame()
+    for i in range(p.PLATE_STATIONS):
+        plate = _placed_plate(i)
+        assert not clash(plate, f, tol=1.0)
+        assert plate.distance_to(f) < 0.01                    # touching, not floating
+
+
+def _check_plates_span_rails():
+    assert abs(bbox_size(bridge_plate())[2] - p.PLATE_LENGTH) < 0.02
+    assert p.PLATE_LENGTH > 2 * g.rail_lateral()
+    f = frame()
+    for x in (-p.PLATE_BOLT_X, p.PLATE_BOLT_X):
+        for z in (-p.PLATE_BOLT_Z, p.PLATE_BOLT_Z):
+            probe = g.at(g.plate_t(0) + x, g.rail_top_offset() - p.FRAME_SLOT_DEPTH / 2, lateral=z).position
+            assert not contains(f, (probe.X, probe.Y, probe.Z))   # hole sits over an open slot
+
+
+def _check_plates_dont_collide():
+    placed = [_placed_plate(i) for i in range(p.PLATE_STATIONS)]
+    for a, b in combinations(placed, 2):
+        assert not clash(a, b)
+
+
+def _check_assembly_framework():
+    assert set(assembly().keys()) == set(GROUPS)
+    assert set(assembly("frame").keys()) == {"frame"}
+    assert set(COLOURS) == set(GROUPS)
+    try:
+        assembly("drivetrain")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("assembly() must reject unknown group names")
+    assert assembly("plates")["plates"].is_valid
+
+
+# Checks known to fail for a recorded reason. A check listed here counts as
+# XFAIL when it fails and as a failure of the run when it unexpectedly
+# passes -- at which point remove it from this table.
+_EXPECTED_FAILURES = {
+    "plates don't collide with each other": (
+        f"CENTRE_DIST = {p.CENTRE_DIST:g} puts {p.PLATE_STATIONS} plates {p.CENTRE_DIST / (p.PLATE_STATIONS - 1):g} mm "
+        f"apart but each is {p.PLATE_WIDTH:g} mm wide -- open layout question, rev C §8"
+    ),
+}
+
 _CHECKS = [
     ("parameter consistency", _check_parameter_consistency),
     ("returning run clearance", _check_returning_run_clearance),
@@ -103,18 +188,33 @@ _CHECKS = [
     ("probe points", _check_probe_points),
     ("clearance", _check_clearance),
     ("manifold", _check_manifold),
+    ("frame geometry", _check_frame_geometry),
+    ("frame", _check_frame),
+    ("plates sit on rails", _check_plates_sit_on_rails),
+    ("plates span rails", _check_plates_span_rails),
+    ("plates don't collide with each other", _check_plates_dont_collide),
+    ("assembly framework", _check_assembly_framework),
 ]
 
 
 def run_checks() -> bool:
     all_passed = True
     for label, fn in _CHECKS:
+        expected_failure = _EXPECTED_FAILURES.get(label)
         try:
             fn()
-            print(f"PASS  {label}")
         except AssertionError as exc:
-            print(f"FAIL  {label}: {exc}")
-            all_passed = False
+            if expected_failure:
+                print(f"XFAIL {label}: {expected_failure}")
+            else:
+                print(f"FAIL  {label}: {exc}")
+                all_passed = False
+        else:
+            if expected_failure:
+                print(f"XPASS {label}: now passes -- remove it from _EXPECTED_FAILURES")
+                all_passed = False
+            else:
+                print(f"PASS  {label}")
     return all_passed
 
 
