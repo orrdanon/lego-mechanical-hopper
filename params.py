@@ -8,8 +8,9 @@ at the call site.
 Units are millimetres and degrees everywhere.
 
 Implements docs/specs/phase1-cad-spec.md through -revD.md, the parameter
-tables of phase3-cad-spec-revB.md renumbered for the rev D belt, and the
-frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md.
+tables of phase3-cad-spec-revB.md renumbered for the rev D belt, the
+frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md,
+and docs/specs/drivetrain-spec.md rev B §3, which supersedes phase 3's pulley.
 One value remains provisional pending real hardware: `SHAFT_HEIGHT_ABOVE_PLATE`
 (see the note beside it). The belt is the HTD-3M x 15mm x 828mm loop chosen
 in rev D; `CENTRE_DIST` follows from it and is no longer an open question.
@@ -38,8 +39,12 @@ CENTRE_DIST = (BELT_LOOP_LENGTH - math.pi * PULLEY_PD) / 2   # mm, 354.0 -- rev 
 # Rev D starting values: FLANK_RADIUS chosen so TOOTH_HEIGHT hits the
 # published 3M tooth height (1.17), ROOT_RADIUS scaled 3/5 from the 5M guess.
 
-FLANK_RADIUS = 0.79       # mm -- APPROXIMATE, tune per revB §7
-ROOT_RADIUS = 0.26        # mm -- APPROXIMATE, tune per revB §7
+# Since drivetrain-spec rev B these shape the belt reference solid only.
+# Nothing printed depends on them; tune them only if the belt model stops
+# fitting the standard groove (drivetrain-spec §12.4).
+
+FLANK_RADIUS = 0.79       # mm -- APPROXIMATE, belt model only
+ROOT_RADIUS = 0.26        # mm -- APPROXIMATE, belt model only
 FLANK_CENTRE_Y = 0.381    # mm, flank arc centre height above the land
 
 # FLANK_CENTRE_Y and BELT_PLD are the same physical offset (the belt's pitch
@@ -56,28 +61,78 @@ LAND_WIDTH = BELT_PITCH - 2 * math.sqrt(
     (FLANK_RADIUS + ROOT_RADIUS) ** 2 - (ROOT_RADIUS - FLANK_CENTRE_Y) ** 2
 )   # mm, derived, 0.91 -- see revB §3 for the root-fillet-centre construction
 
-GROOVE_CLEARANCE = 0.10   # mm, tune on the printer
+# --- Belt (derived, phase 3) --------------------------------------------
 
-# --- Pulley (printed) -- phase3-cad-spec.md §4 --------------------------
+BELT_BACK_THICKNESS = BELT_THICKNESS - TOOTH_HEIGHT   # mm, derived, 1.229
+assert BELT_PLD < BELT_BACK_THICKNESS, "pitch line must fall inside the belt's backing"
+
+# --- Pulley (printed) -- drivetrain-spec.md §3.3, §5.6 -------------------
 
 PULLEY_OD = PULLEY_PD - 2 * BELT_PLD   # mm, derived, 37.435...
 PULLEY_BORE = 8.0                 # mm
 PULLEY_BORE_CLEARANCE = 0.15      # mm, printed hole runs undersize
-PULLEY_HUB_DIA = 22.0             # mm
-PULLEY_HUB_LENGTH = 10.0          # mm, beyond the toothed face
+PULLEY_BORE_CHAMFER = 0.4         # mm, both ends of the bore
 PULLEY_GRUB_M = 4.0               # mm, M4, into a heat-set insert
+PULLEY_GRUB_CLEARANCE_DIA = 4.5   # mm, standard M4 clearance hole, insert pocket through to the bore
 PULLEY_INSERT_DIA = 5.6           # mm
-PULLEY_INSERT_DEPTH = 8.0         # mm
+PULLEY_INSERT_DEPTH = 6.0         # mm -- PROVISIONAL, was 8.0, which broke into the bore (drivetrain-spec §5.6)
+PULLEY_INSERT_MIN_WALL = 2.0      # mm, least material between the insert pocket and the bore
 
-# --- Belt (derived, phase 3) --------------------------------------------
+# Standard HTD-3M pulley groove, read from CADENAS model 40015040
+# (reference/htd3m_40t_40015040.stp). VALID FOR 40 TEETH ONLY -- the standard
+# groove varies with tooth count. Catalogue values: never tune these to make
+# a print or a check fit (drivetrain-spec §4.2, §12.4).
 
-BELT_BACK_THICKNESS = BELT_THICKNESS - TOOTH_HEIGHT   # mm, derived, 1.23
-assert BELT_PLD < BELT_BACK_THICKNESS, "pitch line must fall inside the belt's backing"
+PULLEY_GROOVE_TEETH = 40          # count, the only tooth count the values below describe
+PULLEY_GROOVE_BOTTOM_R = 17.501   # mm, bottom arc radius, about the pulley axis
+PULLEY_GROOVE_FLANK_R = 0.700     # mm, concave flank arc
+PULLEY_GROOVE_FLANK_U = 0.2476    # mm, flank arc centre, tangential offset from the groove centreline
+PULLEY_GROOVE_TIP_R = 0.191       # mm, convex tip radius onto the OD land
+PULLEY_GROOVE_TIP_U = 1.1883      # mm, tip arc centre, tangential offset
+PULLEY_GROOVE_DEPTH = PULLEY_OD / 2 - PULLEY_GROOVE_BOTTOM_R   # mm, derived, 1.2165 (file: 1.219, from its rounded OD)
+PULLEY_GROOVE_PHASE = 4.5         # deg, first groove centre from local +y towards +x, so a land lies on +y
+assert PULLEY_TEETH == PULLEY_GROOVE_TEETH, "the PULLEY_GROOVE_ values are only valid for a 40-tooth pulley"
 
-# --- Calibration coupon -- phase3-cad-spec.md §7 ------------------------
+# Printer compensation, both set from the ring coupon (drivetrain-spec §13).
 
-COUPON_LENGTH = 40.0       # mm
-COUPON_GROOVE_COUNT = 5    # count
+PULLEY_GROOVE_COMP = 0.0          # mm -- PROVISIONAL, uniform outward offset of every groove edge
+PULLEY_OD_COMP = 0.0              # mm -- PROVISIONAL, subtracted from the modelled OD (a diameter)
+assert PULLEY_GROOVE_COMP < PULLEY_GROOVE_TIP_R, "compensation would consume the groove's tip radius"
+
+# --- Shaft set (printed): two pulleys and a guide wheel -- drivetrain-spec.md §5
+
+SHAFTSET_LENGTH = 2 * (BELT_SPACING / 2 + PULLEY_FACE_WIDTH / 2)   # mm, derived, 59.0
+DRUM_DIA = 26.0                   # mm -- PROVISIONAL, between the guide wheel and each pulley
+DRUM_TAB_CLEAR = 1.0              # mm, minimum radial running clearance, drum to tab tip
+PULLEY_SKIRT_R = 16.8             # mm -- PROVISIONAL, radius the drum flares to under the pulley face
+BELT_TOOTH_CLEAR = 0.5            # mm, minimum, flare to overhanging belt teeth
+SHAFTSET_CONE_ANGLE = 45.0        # deg, from the axis; every outward step is a cone this steep, to print unsupported
+END_CHAMFER = 0.3                 # mm, on both end faces, against elephant's foot
+GRUB_Z = 17.5                     # mm -- PROVISIONAL, +/-, the two grub screw planes
+SHAFT_FLAT_DEPTH = 0.5            # mm, filed on the shaft
+SHAFT_FLAT_LENGTH = 45.0          # mm, centred on the shaft set
+
+# --- Guide: lug on every slat, V-groove on each shaft set -- drivetrain-spec.md §5.5, §6.1
+
+LUG_DEPTH = 4.0                   # mm -- PROVISIONAL, below the slat contact face
+LUG_TIP_WIDTH = 3.0               # mm -- PROVISIONAL, across the machine
+LUG_ANGLE = 90.0                  # deg, included; 45 deg flanks print, the 40 deg industrial V would not
+LUG_TOP_WIDTH = LUG_TIP_WIDTH + 2 * LUG_DEPTH * math.tan(math.radians(LUG_ANGLE / 2))   # mm, derived, 11.0
+LUG_LENGTH = 8.0                  # mm -- PROVISIONAL, along the run, centred on the slat
+LUG_END_CHAMFER = 1.0             # mm, leading and trailing ends, for groove entry
+GUIDE_WIDTH = 16.0                # mm -- PROVISIONAL, wheel face, across the machine
+GUIDE_RIM_GAP = 0.5               # mm, rim radius = belt back - this
+GROOVE_FLANK_CLEAR = 0.5          # mm -- PROVISIONAL, normal to each flank
+GROOVE_TIP_CLEAR = 1.5            # mm, below the lug tip; the lug never bottoms
+
+# --- Take-up: the tail bridge plate slides in its T-slots -- drivetrain-spec.md §9.3
+
+TAIL_TAKEUP_MIN = -4.0            # mm -- PROVISIONAL, tail plate toward the head, for fitting the belt
+TAIL_TAKEUP_MAX = 2.0             # mm -- PROVISIONAL, away from the head, for tension and belt tolerance
+
+# --- Calibration coupons -- drivetrain-spec.md §10 -----------------------
+
+RING_COUPON_THICKNESS = 3.0       # mm
 
 # --- Machine ------------------------------------------------------------
 
@@ -123,7 +178,7 @@ PLATE_BOLT_Z = FRAME_WIDTH / 2 - FRAME_PROFILE / 2   # mm, 127.0, on the rails' 
 
 SLAT_PITCH = 18.0      # mm, 6 belt teeth -- rev D; divides the 828mm belt into 46 slats
 SLAT_LENGTH = 80.0     # mm, across the machine, local z
-SLAT_WIDTH = 16.0      # mm, along the run, local x -- rev D, keeps the 2mm inter-slat gap
+SLAT_WIDTH = 17.0      # mm, along local x -- PROVISIONAL, was 16 (rev D); a 1mm inter-slat gap so thin parts cannot wedge edge-on. Set from the printed width at calibration step 3
 SLAT_THICKNESS = 3.0   # mm, local y
 CLEAT_EVERY = 2        # every second slat is cleated -- rev D; 46 isn't divisible by 3
 CLEAT_HEIGHT = 12.0    # mm, above the slat top face
@@ -142,7 +197,7 @@ assert SLAT_COUNT % CLEAT_EVERY == 0, "cleat pattern must repeat cleanly across 
 # separate clearance parameter -- see parts/slat.py _saddle_pair()).
 
 SADDLE_TAB_THICKNESS = 2.5    # mm, along local z
-SADDLE_TAB_DEPTH = 6.0        # mm, into negative local y
+SADDLE_TAB_DEPTH = 3.6        # mm, into negative local y -- PROVISIONAL, drivetrain-spec §6.2, was 6.0; = belt 2.4 + 0.2 gap + lip 1.0
 SADDLE_TAB_LENGTH = 7.0       # mm, along local x, centred -- rev D, was 12; must grip <= 2.5 teeth (7.5mm at 3mm pitch)
 SADDLE_INTERFERENCE = 0.2     # mm, total, so nominal gap = BELT_WIDTH - 0.2
 SADDLE_LIP_PROJECTION = 0.8   # mm, inward, at the tab tip
@@ -158,8 +213,8 @@ SKIRT_INSET = 38.0     # mm, from centreline
 
 PRINT_ROT_PLAIN = (180.0, 0.0, 0.0)     # deg, top face down, tabs up
 PRINT_ROT_CLEATED = (180.0, 0.0, 0.0)   # deg, cleat tip down, tabs up
-PRINT_ROT_PULLEY = (0.0, 0.0, 0.0)      # deg, hub end down, axis vertical -- native orientation
-PRINT_ROT_COUPON = (0.0, 0.0, 0.0)      # deg, flat on the bed -- native orientation
+PRINT_ROT_SHAFT_SET = (0.0, 0.0, 0.0)   # deg, axis vertical, either end down -- native orientation
+PRINT_ROT_COUPON = (0.0, 0.0, 0.0)      # deg, both coupons, axis vertical, flat on the bed -- native orientation
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------

@@ -3,13 +3,18 @@
 Parametric build123d model of the LEGO-sorter feed elevator, structured as
 parts that assemble. Phase 1 built the conveyor slat (plain and cleated);
 phase 4 added the assembly framework with the aluminium frame and the
-plywood bridge plates as its first two groups. See the `phase*-cad-spec*.md`
-files in `docs/specs/`: each phase depends on the earlier ones, and each
-rev diffs against the previous one rather than replacing it.
+plywood bridge plates as its first two groups; the drivetrain spec added
+the tooth profile, the printed shaft sets, shafts, belts and the slats
+running round both ends. See the `phase*-cad-spec*.md` files and
+`drivetrain-spec.md` in `docs/specs/`: each phase depends on the earlier
+ones, and each rev diffs against the previous one rather than replacing it.
 
-For a single self-contained summary of what is built and decided (written
-for readers outside the project, and the input to the belt and pulley
-specification), see `docs/design-baseline.md`.
+For a single self-contained summary of what was built and decided before
+the drivetrain (written for readers outside the project, and the input to
+the drivetrain specification), see `docs/design-baseline-v1.md`. It is a
+snapshot at commit `98f4fb1` and is not updated: `drivetrain-spec.md` §0
+corrects its belt-back radius and every radial station in its §2, and §3
+replaces its hub, groove-clearance and coupon parameters.
 
 ## Setup
 
@@ -31,8 +36,10 @@ run any part module directly:
 python3 parts/slat.py
 ```
 
-This opens the viewer showing a plain slat. `parts/frame.py` and
-`parts/bridge_plate.py` work the same way. Without a running viewer
+This opens the viewer showing a plain slat. `parts/shaft_set.py` (teeth
+and guide groove visible), `parts/shaft.py`, `parts/belt.py`,
+`parts/coupons.py`, `parts/frame.py` and `parts/bridge_plate.py` work the
+same way. Without a running viewer
 server, `ocp_vscode` prints a connection warning but the geometry still
 builds correctly (exit code 0) -- useful for a headless sanity check.
 
@@ -43,13 +50,22 @@ python3 assembly.py                 # every group
 python3 assembly.py frame           # just the frame
 python3 assembly.py frame plates    # both, in position
 python3 assembly.py plates --detail
+python3 assembly.py frame plates drivetrain belts slats   # the machine
+python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
+python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
 ```
+
+A name is a group, or `group:pattern` for just the members whose label
+matches the glob pattern; a pattern matching nothing lists the group's
+member labels. So the drivetrain can be built up one part per run, and
+`slats` on its own is the shortcut for all 46.
 
 Each group is shown in its fixed colour from `assembly.COLOURS` and named
 in the viewer tree, with its members labelled (`plate 0 (bearing)`, `rail
-+z`, ...). `--detail` is accepted by every group; in this phase both
-ignore it. Phase 5's slats group will honour it by drawing plain boxes by
-default, because forty-odd real slats make the viewer crawl.
++z`, `head shaft set`, `slat 12`, ...). `--detail` is accepted by every
+group. `slats` draws plain bounding boxes without it and real slats with
+it; `belts` draws the smooth backing band without it and both 276-tooth
+loops with it. The rest ignore it.
 
 ## Running checks
 
@@ -57,8 +73,9 @@ default, because forty-odd real slats make the viewer crawl.
 python3 checks.py
 ```
 
-Prints one line per acceptance check from rev B §5 and phase 4 §8 and
-exits non-zero if any fail. This is the same set of assertions as the
+Prints one line per acceptance check from rev B §5, phase 4 §8 and
+drivetrain-spec §4.4 and §12, and exits non-zero if any fail. It takes
+about half a minute, nearly all of it the whole-loop clearance sweep. This is the same set of assertions as the
 pytest suite, just human-facing. A check listed in `_EXPECTED_FAILURES`
 prints `XFAIL` with its recorded reason instead of failing the run, and
 prints `XPASS` and fails the run if it unexpectedly passes -- that is the
@@ -76,11 +93,15 @@ python -m pytest
 python3 export.py
 ```
 
-Writes `out/slat_plain.stl` and `out/slat_cleated.stl` (print-rotated per
-`params.PRINT_ROT_PLAIN` / `PRINT_ROT_CLEATED`). `out/` is gitignored.
+Writes `out/slat_plain.stl`, `out/slat_cleated.stl`, `out/shaft_set.stl`
+(print two, axis vertical, either end down, PETG, no support),
+`out/ring_coupon.stl` and `out/guide_coupon.stl`, each print-rotated per
+its `params.PRINT_ROT_*`. `out/` is gitignored. **Print in the order of
+"Physical calibration" below** -- the coupons gate the shaft set, and no
+slats should be batch-printed before the saddle and guide fits pass.
 
-The frame is owned hardware and the bridge plates are cut from plywood, so
-neither is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
+The frame and shafts are owned or bought hardware, the belt is bought, and
+the bridge plates are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
 with the plate rectangle and hole positions instead.
 
 ## The assembly framework (phase 4)
@@ -91,10 +112,11 @@ with the plate rectangle and hole positions instead.
 |---|---|---|---|
 | `params.py` | what did we choose | floats | `math` |
 | `geometry.py` | where, how far | floats, `Location` | `params` |
+| `profile.py` | what tooth form | `Edge`, `Face` | `params` |
 | `parts/*.py` | what shape | `Part` | `params`, `geometry` |
 | `assembly.py` | what goes where | `Compound` | all three |
 
-`geometry` never builds a solid. A part returns a solid in its own local
+`geometry` never builds a solid, and `profile` stops at 2D edges and faces. A part returns a solid in its own local
 frame and never computes a machine position; it may import a scalar from
 `geometry` when that scalar is one of its own dimensions. `frame()` is the
 one exception -- it returns a Compound already positioned in the machine,
@@ -108,6 +130,8 @@ placing it is a single `at()` call with no corrective offset:
 - bridge plate: centre of its top face (pillow blocks and posts bolt here)
 - frame rail: centre of its top face (plates sit here)
 - slat: centre of its belt-contact face
+- shaft set and shaft: on the axis, at the centre plane of the guide groove
+- belt loop: the tail shaft axis, +x along the run
 
 Local axes for anything placed by `at()`: +x along the run, +y out along
 the run normal, +z across the machine. Each part's docstring states its
@@ -116,9 +140,11 @@ to check.
 
 ### How to add a group
 
-1. Write `<name>_group(detail: bool = False) -> Compound` in `assembly.py`,
-   building parts and placing them with `at()` and the `geometry` datums.
-   No new positions invented inside the part modules.
+1. Write `<name>_group(detail: bool = False, takeup: float = 0.0) -> Compound`
+   in `assembly.py`, building parts and placing them with `at()`,
+   `loop_at()` and the `geometry` datums. No new positions invented inside
+   the part modules. `takeup` slides whatever rides on the tail bridge
+   plate; a group that doesn't, ignores it.
 2. Add `"<name>": <name>_group` to `GROUPS` and a fixed colour to `COLOURS`.
 3. Add its acceptance checks to `checks.py` and `tests/`.
 
@@ -177,16 +203,179 @@ changed the belt (see "Belt, slat pitch and width, rev D"). With
 `_EXPECTED_FAILURES` entry have been removed. The mechanism stays in
 `checks.py` for the next such case.
 
+## Drivetrain
+
+`docs/specs/drivetrain-spec.md` rev B. One printed **shaft set** per shaft
+carries both toothed pulleys and a central V-grooved guide wheel, so the two
+belts are in phase by construction; a **lug** under every slat runs in the
+groove and is the machine's only lateral constraint. The tail bridge plate
+slides in its T-slots as the take-up.
+
+### Belt-back radius correction (2026-09-21)
+
+Phase 1 defined `belt_back_radius()` as `PULLEY_PD/2 - BELT_PLD +
+BELT_THICKNESS` = 21.118, which puts the belt's tooth *tips* on the pulley
+OD. It is the belt's *land* that rests on the OD, with the teeth down in
+the grooves, so the radius is `PULLEY_OD/2 + BELT_BACK_THICKNESS` =
+**19.947** -- one tooth height (1.171) less. The error was in the phase 1
+spec, not its implementation (drivetrain-spec §0). Every radial station
+moved with it: slat top 22.947, cleat tip 34.947, returning-run clearance
+to the plates 13.05 (was 11.9). `checks.py` and `tests/test_drivetrain.py`
+now assert the three facts that would have caught it: tooth tips inside
+the OD, pitch line inside the backing, tooth tips above the groove bottom.
+
+### Pulley groove: source and licence
+
+The groove is the standard HTD-3M groove **for 40 teeth**, rebuilt in closed
+form by `profile.py` from five `PULLEY_GROOVE_*` values read out of CADENAS
+PARTsolutions model 40015040, a 40-tooth HTD-3M pulley for 15 mm belt. The
+model belongs at `reference/htd3m_40t_40015040.stp`, stored unmodified and
+never written or imported by the project; its header gives the licence as
+**CC BY-ND 4.0, credit CADENAS**. The rebuild is tested against four
+junction points read from that file's B-rep and meets them to 0.0025, the
+residual being the file's rounded OD. `pulley_section()` is the only thing
+that makes teeth -- the shaft set and the ring coupon both use it -- and it
+refuses any tooth count but 40. Never change a `PULLEY_GROOVE_*` value to
+make a print or a check fit; `FLANK_RADIUS` and `ROOT_RADIUS` now shape the
+belt *model* only, and are what to tune if the mesh check (§12.4) fails.
+
+**The STEP file is not yet in the repo.** It was not available when the
+drivetrain was implemented; see `reference/README.md`. Nothing at run time
+or in the tests needs it.
+
+### Parameters awaiting physical calibration
+
+Set by drivetrain-spec §13, all provisional until then:
+
+| Parameter | Now | Settled by |
+|---|---|---|
+| `BELT_THICKNESS` | 2.4 | step 1, caliper the belt (2.44 on some sheets) |
+| `PULLEY_OD_COMP`, `PULLEY_GROOVE_COMP` | 0.0, 0.0 | step 2, ring coupon |
+| `SADDLE_TAB_DEPTH`, `SADDLE_INTERFERENCE`, `SLAT_WIDTH` | 3.6, 0.2, 17.0 | step 3, saddle fit and printed width |
+| `LUG_DEPTH`, `LUG_TIP_WIDTH`, `LUG_LENGTH`, `GROOVE_FLANK_CLEAR`, `GUIDE_WIDTH` | 4.0, 3.0, 8.0, 0.5, 16.0 | step 4, guide coupon |
+| `DRUM_DIA`, `PULLEY_SKIRT_R`, `GRUB_Z`, `PULLEY_INSERT_DEPTH` | 26.0, 16.8, 17.5, 6.0 | step 5, first shaft set |
+| `TAIL_TAKEUP_MIN`, `TAIL_TAKEUP_MAX` | -4.0, 2.0 | step 6, assembly |
+| `SHAFT_HEIGHT_ABOVE_PLATE` | 48.0 | measuring the pillow blocks (rev B §8) |
+
+### Physical calibration, in order
+
+Nothing in the checks can tell you the model matches the belt. These can,
+and each gates the next (drivetrain-spec §13 has the full procedure):
+
+1. **Measure the belt** -- thickness at several points, and width.
+2. **Ring coupon** -- OD across two opposite lands sets `PULLEY_OD_COMP`;
+   then wrap real belt 180° round it: teeth riding up toward the ends means
+   pitch is still wrong, needing force to seat means raise
+   `PULLEY_GROOVE_COMP` by 0.05. Do not tune `FLANK_RADIUS`/`ROOT_RADIUS`.
+3. **Saddle fit** -- one plain slat on real belt: snaps on, holds, lips just
+   under the belt.
+4. **Guide coupon** -- with that slat, the lug enters from a 1 mm offset
+   without catching and the slat returns to centre.
+5. **First shaft set.** Only now.
+6. **Assembly and axial set-up** -- both shaft sets at the same z, by caliper
+   from the pillow blocks; tension by sliding the tail plate until a finger
+   press at mid-span deflects the belt about 5 mm.
+7. **Creep test** -- paint-mark slats against belt teeth, 1000 revolutions,
+   check drift. The fallback if slats walk is a keyed pin through the belt
+   land; do not build it unless the test fails.
+
+### Inter-slat gap (2026-09-21)
+
+`SLAT_WIDTH` is 17.0, not rev D's 16.0, so neighbouring slats are 1 mm
+apart instead of 2. This is a design decision, not a spec resolution. The
+specs' only rule is that the gap stay under 3.0 so a 1x1 plate cannot drop
+through; that says nothing about thin elements (flag panels, blades, ~1.6
+mm features) wedging edge-on, which a 2 mm slot accepts and a 1 mm slot
+does not. The gap is not needed for the wrap: slats sit on the belt back,
+outside the pitch line, so they fan apart round a pulley, and the gap is
+never smaller than on the straight runs (checked round the whole loop).
+Round the head pulley the slat tops open to 5.7 mm either way.
+
+What the narrower gap costs is margin. Slats have no positive location
+along the belt -- the tabs grip its edges, not its teeth -- so:
+
+- **Place each slat against the teeth**, centred on every sixth land, never
+  with a shim against its neighbour: gauging from slat widths lets a 0.1
+  print error accumulate to 4.6 mm at the 46th slat.
+- The value is provisional until calibration step 3. Caliper the first
+  printed slat and set `SLAT_WIDTH` so the *printed* gap is about 1.0.
+- If the creep test (step 7) shows slats walking, this margin is the first
+  thing they use up.
+
+## Drivetrain resolutions
+
+Places where drivetrain-spec rev B could not be followed to the letter,
+resolved from its own definitions per the convention in `CLAUDE.md`.
+
+### Lug-in-groove control
+
+§12.5 asserts that a shaft set cut with `groove_flank_clear=0,
+groove_tip_clear=0` must clash with the slat's lug. It cannot: the lug is
+straight and the groove is revolved, so -- for exactly the reason §6.1 gives
+for why the lug does not bind -- every point of the lug off its mid-plane is
+further from the axis than the matching groove section, where the V is
+wider. A zero-clearance groove touches the lug along lines at x = 0 and
+shares no volume with it (`test_zero_clearance_groove_only_touches_the_lug`
+pins this). The control's purpose is to prove the lug is really in the
+groove, so it is kept in two forms that can fail: a groove tighter than the
+lug by the nominal clearances (`-GROOVE_FLANK_CLEAR`, `-GROOVE_TIP_CLEAR`)
+must clash; and the slat slid sideways by 0.9 of its ±0.707 play must run
+clear while 1.1 of it must strike a flank, on both sides.
+
+### Take-up and the loop
+
+§12.6 runs the whole-loop clearance sweep at three take-ups, "moving the
+tail plate, pillow-block station and tail shaft set together". If the slats
+stayed on the nominal loop, the guide wheel pushed 2.0 tailward would run
+into the slats wrapped on the tail arc (0.5 rim gap), which is not what a
+take-up does: the belt goes with the shaft. So `loop_at(s, takeup)` builds
+the loop round `tail_shaft_t(takeup)`, `loop_length(takeup)` is 828 +
+2·takeup, and the slats are spread evenly round that loop. Every assembly
+group takes `takeup`; only the checks pass anything but 0. `belts` ignores
+it and stays at nominal length.
+
+### Groove compensation
+
+§4.2 says `PULLEY_GROOVE_COMP` makes "the bottom and flank arcs grow, the
+tip arc shrinks, about unchanged centres". Two details need care to keep
+every junction tangent. Offsetting the groove *outward* means into the
+material, so the bottom arc -- concentric with the pulley -- gets a
+*smaller* radius (deeper groove) while the concave flank arc's grows; their
+centre distance `BOTTOM_R + FLANK_R` is then unchanged, as the spec intends.
+And a tip arc shrunk about an unchanged centre no longer reaches the OD,
+which has its own, independent `PULLEY_OD_COMP`; so the tip arc keeps its
+tangential offset `PULLEY_GROOVE_TIP_U` and its centre moves radially to
+stay tangent to the compensated OD. At the default 0.0 none of this applies
+and the groove is exactly the standard.
+
+### End chamfer on the toothed faces
+
+`END_CHAMFER` is cut by intersecting each pulley zone with a coned envelope,
+so it breaks the outer edge of the lands ("outer edge", §5.3) and leaves
+the groove walls vertical. A true edge chamfer of 0.3 round a 0.191 tip
+radius is not constructible.
+
+### `tooth_face()` closure
+
+§4.3 describes the tooth face as "spanning one pitch, closed along the
+land". Between the root fillets and ±pitch/2 the land and the closing line
+coincide and enclose no area, so the face spans fillet to fillet;
+`tooth_half()` still runs the full half pitch.
+
 ## Missing parameters
 
-None. Every dimension needed by phase 1 is present in `params.py`.
+None. Every dimension needed so far is present in `params.py`. The
+drivetrain added a few the spec used but did not name:
+`PULLEY_BORE_CHAMFER`, `PULLEY_GRUB_CLEARANCE_DIA`,
+`PULLEY_INSERT_MIN_WALL`, `SHAFTSET_CONE_ANGLE`, `RING_COUPON_THICKNESS`
+and `PULLEY_GROOVE_TEETH`.
 
 ## Provisional parameters
 
-One value in `params.py` is a best guess, not a measurement, per rev B §8:
-
-- `SHAFT_HEIGHT_ABOVE_PLATE` (48mm) -- depends on the pillow blocks actually
-  bought; measure before modelling the standoff that sets this height.
+`SHAFT_HEIGHT_ABOVE_PLATE` (48mm) is a best guess, not a measurement, per
+rev B §8 -- it depends on the pillow blocks actually bought; measure before
+modelling the standoff that sets this height. The drivetrain's provisional
+values are tabulated under "Parameters awaiting physical calibration".
 
 The belt is the HTD-3M, 15mm wide, 828mm pitch length, 276-tooth loop chosen
 in rev D. Its thickness (2.4) and pitch line differential (0.381) are
@@ -195,11 +384,11 @@ it. See "Belt, slat pitch and width, rev D" below for what the belt drives.
 
 `SADDLE_INTERFERENCE`, `SADDLE_TAB_DEPTH` and `CLEAT_HEIGHT` are also
 unvalidated against real hardware (rev B §8) -- the acceptance checks
-confirm internal consistency, not a physical fit. The 6mm tab depth was
-sized around a 3.8mm belt and now wraps a 2.4mm one. That fit is still the
-gate before phase 2: print one plain slat and one cleated, clip them to a
-scrap of the 15mm HTD-3M belt, and run them round a pulley before modelling
-anything further.
+confirm internal consistency, not a physical fit. The drivetrain spec cut
+the tab depth from 6.0 to 3.6 (belt 2.4 + 0.2 gap + lip 1.0) so the lips
+sit just under the 2.4mm belt instead of 2.6 below it, and added the guide
+lug; **any slat printed before that is for saddle test-fitting only, and
+none should be batch-printed until calibration step 4 passes.**
 
 ## Belt, slat pitch and width, rev D
 
@@ -213,8 +402,8 @@ changelog and reasoning; the short version:
   24 x 5mm, so the pitch diameter and every clearance built on it are
   unchanged. `CENTRE_DIST` becomes 354mm.
 - `SLAT_PITCH = 18` (6 teeth) is the smallest whole-tooth pitch dividing
-  828mm that leaves room for the 10mm cleat root; `SLAT_WIDTH = 16` keeps
-  the 2mm gap; 46 slats.
+  828mm that leaves room for the 10mm cleat root; `SLAT_WIDTH = 16` kept
+  rev C's 2mm gap (since narrowed, see "Inter-slat gap"); 46 slats.
 - `CLEAT_EVERY = 2`: 46 isn't divisible by 3, and "every third" would put
   two cleats 18mm apart at the belt seam. A new `params.py` assertion,
   `SLAT_COUNT % CLEAT_EVERY == 0`, guards that.
@@ -225,7 +414,8 @@ changelog and reasoning; the short version:
 - `SADDLE_TAB_LENGTH = 7` (was 12): rev B's "grips at most 2.5 teeth" is
   7.5mm at a 3mm pitch.
 - Phase 3 profile radii renumbered so `TOOTH_HEIGHT` is the published 1.17mm
-  for HTD-3M; still approximate, still calibrated per phase 3 §7.
+  for HTD-3M; still approximate, and since the drivetrain spec they shape
+  the belt model only.
 
 The bounding-box, volume, probe-point and cleated-count numbers in
 `checks.py`/`tests/` were recomputed from the built geometry (rev D §5),

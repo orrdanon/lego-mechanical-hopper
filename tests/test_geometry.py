@@ -26,7 +26,7 @@ def test_run_direction_and_normal_are_right_handed():
 
 
 def test_belt_back_radius():
-    assert belt_back_radius() == approx(21.118, abs=0.01)
+    assert belt_back_radius() == approx(19.947, abs=0.01)   # corrected, drivetrain-spec §0
 
 
 def test_shaft_axis_tail_is_origin():

@@ -1,6 +1,6 @@
 """Small, part-agnostic helpers for inspecting and comparing solids."""
 
-from build123d import Box, Part, Pos, Shape, ShapeList
+from build123d import BoundBox, Box, Part, Pos, Shape, ShapeList
 
 
 def _volume(result) -> float:
@@ -17,12 +17,24 @@ def _overlap_volume(a: Shape, b: Shape) -> float:
     `Compound.intersect()` returns None for a multi-solid Compound such as
     the frame, so the intersection is taken pairwise over the solids of
     each shape. That double-counts only where a shape's own solids overlap
-    each other, which no assembly group here does."""
+    each other, which no assembly group here does.
+
+    Solids whose bounding boxes are disjoint share nothing, and are skipped
+    without a boolean -- which is what keeps a whole-loop clash sweep cheap."""
     total = 0.0
     for solid_a in a.solids():
+        box_a = solid_a.bounding_box()
         for solid_b in b.solids():
-            total += _volume(solid_a.intersect(solid_b))
+            if _boxes_overlap(box_a, solid_b.bounding_box()):
+                total += _volume(solid_a.intersect(solid_b))
     return total
+
+
+def _boxes_overlap(a: BoundBox, b: BoundBox) -> bool:
+    return all(
+        lo_a <= hi_b and lo_b <= hi_a
+        for lo_a, hi_a, lo_b, hi_b in zip(a.min, a.max, b.min, b.max)
+    )
 
 
 def contains(part: Shape, point: tuple[float, float, float], eps: float = 0.05) -> bool:

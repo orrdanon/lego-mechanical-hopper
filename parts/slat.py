@@ -2,7 +2,8 @@
 
 Modelled in the slat local frame of the CAD spec (S4.4): local origin at the
 centre of the belt-contact face, mid-span; +x along the run; +y away from
-the belt; +z across the machine.
+the belt; +z across the machine. The saddle tabs and the guide lug hang
+below the contact face, in -y.
 """
 
 import sys
@@ -12,7 +13,7 @@ from pathlib import Path
 # puts the script's own directory on sys.path, not the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from build123d import Align, Axis, Box, Cylinder, Part, Polygon, Pos, chamfer, extrude, fillet
+from build123d import Align, Axis, Box, Cylinder, Part, Plane, Polygon, Pos, chamfer, extrude, fillet
 
 import params as p
 from geometry import belt_back_radius
@@ -77,6 +78,29 @@ def _saddles() -> Part:
     return _saddle_pair(1) + _saddle_pair(-1)
 
 
+def _lug() -> Part:
+    """The guide lug (drivetrain-spec §6.1): a trapezoidal ridge hanging below
+    the belt-contact face at z = 0, which runs in the shaft sets' V-groove.
+    Its leading and trailing ends are chamfered on the tip and both flanks,
+    so it is led into the groove radially and from a lateral offset."""
+    half_top = p.LUG_TOP_WIDTH / 2
+    half_tip = p.LUG_TIP_WIDTH / 2
+    profile = Plane.ZY * Polygon(
+        (-half_top, 0.0),
+        (half_top, 0.0),
+        (half_tip, -p.LUG_DEPTH),
+        (-half_tip, -p.LUG_DEPTH),
+        align=None,
+    )
+    lug = extrude(profile, amount=p.LUG_LENGTH / 2, both=True)
+    end_edges = [
+        e
+        for e in lug.edges()
+        if _near(abs(e.center().X), p.LUG_LENGTH / 2) and not _near(e.center().Y, 0.0)
+    ]
+    return chamfer(end_edges, p.LUG_END_CHAMFER)
+
+
 def _cleat() -> Part:
     half_root = p.CLEAT_WIDTH_ROOT / 2
     half_tip = p.CLEAT_WIDTH_TIP / 2
@@ -114,15 +138,14 @@ def _body_with_cleat() -> Part:
 def slat(cleated: bool = False) -> Part:
     """One conveyor slat, modelled in the slat local frame of S4.4."""
     body = _body_with_cleat() if cleated else _body()
-    return body + _saddles()
+    return body + _saddles() + _lug()
 
 
 def pulley_envelope() -> Part:
     """A cylinder representing one pulley's swept volume, positioned in the
     slat local frame as it sits when the slat is at a shaft. Used only for
     clearance checking -- not a manufactured part."""
-    radius = p.PULLEY_PD / 2 - p.BELT_PLD
-    return Pos(0, -belt_back_radius(), p.BELT_SPACING / 2) * Cylinder(radius, p.PULLEY_FACE_WIDTH)
+    return Pos(0, -belt_back_radius(), p.BELT_SPACING / 2) * Cylinder(p.PULLEY_OD / 2, p.PULLEY_FACE_WIDTH)
 
 
 if __name__ == "__main__":

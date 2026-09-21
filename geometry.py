@@ -24,10 +24,48 @@ def run_normal() -> Vector:
     return Vector(-math.sin(theta), math.cos(theta), 0.0)
 
 
+# --- Radial stations about a shaft axis -- drivetrain-spec §9.1 -----------------
+# Everything that asserts a radial clearance uses these, never literals.
+
+
 def belt_back_radius() -> float:
-    """Distance from a shaft axis to the belt's smooth outer face, mm."""
-    pulley_od_radius = params.PULLEY_PD / 2 - params.BELT_PLD
-    return pulley_od_radius + params.BELT_THICKNESS
+    """Distance from a shaft axis to the belt's smooth outer face, which is
+    the slat contact face, mm. The belt's land rests on the pulley OD and
+    its teeth sit down in the grooves, so this is the OD plus the backing
+    alone -- not plus the whole belt thickness, the phase 1 error corrected
+    by drivetrain-spec §0. = PULLEY_OD/2 + BELT_BACK_THICKNESS = 19.947"""
+    return params.PULLEY_OD / 2 + params.BELT_BACK_THICKNESS
+
+
+def belt_tooth_tip_radius() -> float:
+    """Radius of the belt's tooth tips when meshed, inside the pulley OD.
+    = belt_back_radius() - BELT_THICKNESS = 17.547"""
+    return belt_back_radius() - params.BELT_THICKNESS
+
+
+def tab_tip_radius() -> float:
+    """Radius of the saddle tab tips on a slat wrapped on a pulley.
+    = belt_back_radius() - SADDLE_TAB_DEPTH = 16.347"""
+    return belt_back_radius() - params.SADDLE_TAB_DEPTH
+
+
+def cleat_tip_radius() -> float:
+    """Radius swept by the cleat tips round a pulley, and their reach below
+    the shaft axis on the returning run.
+    = belt_back_radius() + SLAT_THICKNESS + CLEAT_HEIGHT = 34.947"""
+    return belt_back_radius() + params.SLAT_THICKNESS + params.CLEAT_HEIGHT
+
+
+def guide_rim_radius() -> float:
+    """Radius of the guide wheel's rim, just under the slat contact face.
+    = belt_back_radius() - GUIDE_RIM_GAP = 19.447"""
+    return belt_back_radius() - params.GUIDE_RIM_GAP
+
+
+def guide_groove_bottom_radius() -> float:
+    """Radius of the guide groove's bottom, below the lug tip.
+    = belt_back_radius() - LUG_DEPTH - GROOVE_TIP_CLEAR = 14.447"""
+    return belt_back_radius() - params.LUG_DEPTH - params.GROOVE_TIP_CLEAR
 
 
 def shaft_axis(end: str) -> Vector:
@@ -69,8 +107,77 @@ def at(t: float, offset: float = 0.0, lateral: float = 0.0) -> Location:
     return Location(plane)
 
 
+# --- The belt loop and the take-up -- drivetrain-spec §9.2, §9.3 ----------------
+
+
+def tail_shaft_t(takeup: float = 0.0) -> float:
+    """Run position of the tail shaft with the tail plate slid by takeup,
+    TAIL_TAKEUP_MIN <= takeup <= TAIL_TAKEUP_MAX. Positive takeup is away
+    from the head, so this is -takeup. Raises ValueError outside the range."""
+    if not params.TAIL_TAKEUP_MIN <= takeup <= params.TAIL_TAKEUP_MAX:
+        raise ValueError(
+            f"takeup must be in {params.TAIL_TAKEUP_MIN}..{params.TAIL_TAKEUP_MAX}, got {takeup}"
+        )
+    return -takeup
+
+
+def loop_length(takeup: float = 0.0) -> float:
+    """Pitch-line length of the loop round the two shafts. BELT_LOOP_LENGTH
+    at takeup 0; each run grows by the takeup."""
+    return params.BELT_LOOP_LENGTH - 2 * tail_shaft_t(takeup)
+
+
+def loop_local(s: float, offset: float, takeup: float = 0.0) -> tuple[float, float, float]:
+    """(t, offset_out, turn) of the loop in the run frame: the point at
+    pitch-line distance s round the loop and `offset` from the shaft axes,
+    as a run parameter and an offset for at(), plus the clockwise angle in
+    degrees through which the belt's travel has turned from run_direction().
+
+    See loop_at() for the stations. s is taken modulo the loop length."""
+    pitch_radius = params.PULLEY_PD / 2
+    arc = math.pi * pitch_radius
+    t_tail = tail_shaft_t(takeup)
+    run = params.CENTRE_DIST - t_tail
+    s = s % (2 * run + 2 * arc)
+    if s < run:
+        return (t_tail + s, offset, 0.0)
+    if s < run + arc:
+        turn = (s - run) / pitch_radius
+        centre = params.CENTRE_DIST
+    elif s < 2 * run + arc:
+        return (params.CENTRE_DIST - (s - run - arc), -offset, 180.0)
+    else:
+        turn = math.pi + (s - 2 * run - arc) / pitch_radius
+        centre = t_tail
+    return (centre + offset * math.sin(turn), offset * math.cos(turn), math.degrees(turn))
+
+
+def loop_at(s: float, takeup: float = 0.0) -> Location:
+    """Frame on the belt back at distance s around the loop, measured
+    along the pitch line, 0 <= s < BELT_LOOP_LENGTH.
+
+    s = 0 is the tail tangent point at the start of the carrying run.
+      0     .. C        carrying run
+      C     .. C + 60   head arc
+      C+60  .. 2C + 60  return run, travelling tailward
+      2C+60 .. 828      tail arc
+
+    Local +x is the direction of belt travel, +y points out of the belt
+    back away from the loop, +z is machine z. On the carrying run this
+    agrees exactly with at(s, belt_back_radius()).
+
+    Distance is on the pitch line because that is where tooth pitch, and so
+    SLAT_PITCH, is defined; position is reported at the belt-back radius,
+    where the slat sits. With a non-zero takeup the tail shaft moves to
+    tail_shaft_t(takeup), both runs change length by the takeup and the
+    loop is loop_length(takeup) long -- see README.md "Take-up and the loop"."""
+    t, offset, turn = loop_local(s, belt_back_radius(), takeup)
+    return at(t, offset) * Location((0.0, 0.0, 0.0), (0.0, 0.0, -turn))
+
+
 def slat_t(index: int) -> float:
-    """Run parameter of slat `index`, counting from 0 at the tail."""
+    """Run parameter of slat `index`, counting from 0 at the tail. Also its
+    distance round the loop for loop_at(), which is how slats are placed."""
     return index * params.SLAT_PITCH
 
 
