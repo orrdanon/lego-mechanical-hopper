@@ -7,6 +7,10 @@ plywood bridge plates as its first two groups. See the `phase*-cad-spec*.md`
 files at the repo root: each phase depends on the earlier ones, and each
 rev diffs against the previous one rather than replacing it.
 
+For a single self-contained summary of what is built and decided (written
+for readers outside the project, and the input to the belt and pulley
+specification), see `../docs/design-baseline.md`.
+
 ## Setup
 
 ```bash

@@ -51,7 +51,10 @@ update once the migration is done.
 ```
 phase1-cad-spec.md        rev A spec (superseded, kept as base document)
 phase1-cad-spec-revB.md   rev B spec (superseded, diff against rev A)
-phase1-cad-spec-revC.md   rev C spec (current for phase 1, diff against rev B)
+phase1-cad-spec-revC.md   rev C spec (superseded, diff against rev B)
+phase1-cad-spec-revD.md   rev D spec (current for phase 1 and the belt, diff against rev C)
+docs/design-baseline.md   self-contained as-built summary for external readers (belt/pulley consultant);
+                          derived from params.py -- regenerate its numbers when params change
 phase2-cad-spec.md        skirts and posts (not yet built)
 phase3-cad-spec.md        tooth profile, belt, pulley (rev A)
 phase3-cad-spec-revB.md   phase 3 rev B (current for phase 3, diff against rev A)
@@ -127,7 +130,7 @@ pytest twin is a `strict=True` xfail. Remove both when the cause is fixed.
 
 ## Out of scope so far
 
-Per rev B §6 and phase 4 §1: pillow block standoffs, the real HTD-5M pulley
+Per rev B §6 and phase 4 §1: pillow block standoffs, the real HTD-3M pulley
 part, side skirts and posts, motor mount, coupler, hopper, brush mounts.
 Their parameters may exist in `params.py` for later phases to reference,
 but don't build the parts themselves until their phase. Don't add slats,
