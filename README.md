@@ -9,12 +9,13 @@ running round both ends. See the `phase*-cad-spec*.md` files and
 `drivetrain-spec.md` in `docs/specs/`: each phase depends on the earlier
 ones, and each rev diffs against the previous one rather than replacing it.
 
-For a single self-contained summary of what was built and decided before
-the drivetrain (written for readers outside the project, and the input to
-the drivetrain specification), see `docs/design-baseline-v1.md`. It is a
-snapshot at commit `98f4fb1` and is not updated: `drivetrain-spec.md` §0
-corrects its belt-back radius and every radial station in its §2, and §3
-replaces its hub, groove-clearance and coupon parameters.
+For a single self-contained summary of what is built and decided, written
+for readers outside the project and as the input to new specifications, see
+`docs/design-baseline-v2.md`. Its numbers are taken from `params.py`:
+regenerate them when parameters change. `docs/design-baseline-v1.md` is the
+frozen snapshot at commit `98f4fb1` that the drivetrain specification was
+written against; it carries the uncorrected belt-back radius and is kept
+only as that spec's reference.
 
 ## Setup
 

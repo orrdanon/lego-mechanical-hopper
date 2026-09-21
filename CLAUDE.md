@@ -67,8 +67,9 @@ update once the migration is done.
 ## Repo layout
 
 ```
-docs/design-baseline-v1.md  as-built summary at commit 98f4fb1, the input to the drivetrain spec;
-                          a frozen snapshot -- drivetrain-spec §0 and §3 supersede its radial stations and pulley
+docs/design-baseline-v2.md  self-contained as-built summary for external spec writers (current);
+                          derived from params.py -- regenerate its numbers when params change
+docs/design-baseline-v1.md  the same at commit 98f4fb1, the input to the drivetrain spec; frozen, superseded by v2
 docs/specs/               the phase specs
   phase1-cad-spec.md        rev A spec (superseded, kept as base document)
   phase1-cad-spec-revB.md   rev B spec (superseded, diff against rev A)
