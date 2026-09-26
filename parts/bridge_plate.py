@@ -23,11 +23,12 @@ from build123d import Align, Box, Cylinder, Part, Pos, Rot
 import params as p
 
 
-def _bolt_hole(x: float, z: float) -> Part:
-    """An M5 clearance cutter through the full plate thickness at local
-    (x, z), axis along local y. Twice the plate thickness so it overshoots
-    both faces rather than leaving coplanar end caps for the boolean."""
-    cutter = Cylinder(p.PLATE_BOLT_CLEARANCE_DIA / 2, 2 * p.PLATE_THICKNESS)   # axis along z
+def _bolt_hole(x: float, z: float, dia: float = p.PLATE_BOLT_CLEARANCE_DIA) -> Part:
+    """A clearance cutter through the full plate thickness at local (x, z),
+    axis along local y, M5 by default. Twice the plate thickness so it
+    overshoots both faces rather than leaving coplanar end caps for the
+    boolean."""
+    cutter = Cylinder(dia / 2, 2 * p.PLATE_THICKNESS)   # axis along z
     return Pos(x, -p.PLATE_THICKNESS / 2, z) * Rot(90.0, 0.0, 0.0) * cutter   # axis now along y
 
 
@@ -41,7 +42,9 @@ def bridge_plate(role: str = "support") -> Part:
     centrelines.
 
     role='bearing' or 'support' -- identical body, different hole pattern.
-    Both patterns are empty in this phase; phase 5 adds them.
+    A bearing plate adds four PLATE_PB_HOLE_DIA holes for the pillow blocks'
+    M4 screws, at local x = ±PB_BOLT_X, z = ±(BEARING_Z + PB_BOLT_Z)
+    (spec-pillow-blocks §2.5). The support pattern waits for the skirt posts.
     """
     if role not in ("bearing", "support"):
         raise ValueError(f"role must be 'bearing' or 'support', got {role!r}")
@@ -56,6 +59,13 @@ def bridge_plate(role: str = "support") -> Part:
         for x in (-p.PLATE_BOLT_X, p.PLATE_BOLT_X)
         for z in (-p.PLATE_BOLT_Z, p.PLATE_BOLT_Z)
     ]
+    if role == "bearing":
+        pb_z = p.BEARING_Z + p.PB_BOLT_Z
+        holes += [
+            _bolt_hole(x, z, p.PLATE_PB_HOLE_DIA)
+            for x in (-p.PB_BOLT_X, p.PB_BOLT_X)
+            for z in (-pb_z, pb_z)
+        ]
     plate = body - holes
     plate.label = f"bridge_plate ({role})"
     return plate

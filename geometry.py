@@ -73,6 +73,13 @@ def guide_groove_bottom_radius() -> float:
     return belt_back_radius() - params.LUG_DEPTH - params.GROOVE_TIP_CLEAR
 
 
+def slat_lateral_play() -> float:
+    """How far a slat can slide across the machine, either way, before a
+    lug flank meets the guide groove: GROOVE_FLANK_CLEAR, which is normal
+    to the flank, measured along machine z. = 0.707"""
+    return params.GROOVE_FLANK_CLEAR / math.cos(math.radians(params.LUG_ANGLE / 2))
+
+
 def shaft_axis(end: str, incline: float = params.INCLINE) -> Vector:
     """Point on the tail ('tail') or head ('head') shaft axis at Z = 0.
     Raises ValueError for any other value."""

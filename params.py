@@ -10,9 +10,9 @@ Units are millimetres and degrees everywhere.
 Implements docs/specs/phase1-cad-spec.md through -revD.md, the parameter
 tables of phase3-cad-spec-revB.md renumbered for the rev D belt, the
 frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md,
-and docs/specs/drivetrain-spec.md rev B §3, which supersedes phase 3's pulley.
-One value remains provisional pending real hardware: `SHAFT_HEIGHT_ABOVE_PLATE`
-(see the note beside it). The belt is the HTD-3M x 15mm x 828mm loop chosen
+docs/specs/drivetrain-spec.md rev B §3, which supersedes phase 3's pulley,
+spec-tilt.md, and spec-pillow-blocks.md §2, whose printed pillow block
+fixes `SHAFT_HEIGHT_ABOVE_PLATE`. The belt is the HTD-3M x 15mm x 828mm loop chosen
 in rev D; `CENTRE_DIST` follows from it and is no longer an open question.
 """
 
@@ -140,8 +140,78 @@ INCLINE = 40.0        # deg, from horizontal
 SHAFT_DIA = 8.0        # mm
 SHAFT_LENGTH = 145.0   # mm
 BEARING_SPACING = 100.0           # mm, pillow block centres
-SHAFT_HEIGHT_ABOVE_PLATE = 48.0   # mm -- PROVISIONAL, depends on the pillow blocks actually bought; measure before modelling the standoff
+SHAFT_HEIGHT_ABOVE_PLATE = 48.0   # mm, fixed by the printed pillow block, which is its own standoff (spec-pillow-blocks §2.2)
 SHAFT_SPEED = 30.0     # rpm, gives 60 mm/s belt speed
+
+# --- Bearings, pillow blocks, spacers -- spec-pillow-blocks.md §2 -----------
+# The spec's SHAFT_HEIGHT is SHAFT_HEIGHT_ABOVE_PLATE and its BEARING_Z is
+# half BEARING_SPACING; both existed already. Pillow-block z is local: 0 at
+# the bearing centre plane, +z outboard.
+
+BEARING_BORE = 8.0                # mm, 608ZZ, catalogue
+BEARING_OD = 22.0                 # mm, catalogue
+BEARING_WIDTH = 7.0               # mm, catalogue
+BEARING_INNER_RACE_OD = 12.1      # mm, catalogue, the inner ring's face; clearance assertions only
+BEARING_EDGE_CHAMFER = 0.3        # mm, catalogue, reference solid only
+BEARING_Z = BEARING_SPACING / 2   # mm, 50.0, bearing centres at machine z = +/-50
+
+PB_POCKET_DIA = 22.4              # mm -- PROVISIONAL, pocket wall between the ribs
+PB_POCKET_DEPTH = BEARING_WIDTH   # mm, derived, the bearing ends flush with the inboard face
+PB_RIB_COUNT = 6                  # count
+PB_RIB_ANGLE_0 = 90.0             # deg, first rib on local +y, the rest at 360/PB_RIB_COUNT steps
+PB_RIB_TIP_DIA = 21.8             # mm -- PROVISIONAL, the one fit parameter, set by the bearing coupon
+PB_RIB_BASE_WIDTH = 2.0           # mm -- PROVISIONAL, where the rib meets the pocket wall
+PB_RIB_TIP_WIDTH = 0.8            # mm -- PROVISIONAL, flat at the rib tip
+PB_RIB_LEAD_IN = 1.0              # mm, each rib ramps from the wall to full height over this, from the mouth
+PB_POCKET_MOUTH_CHAMFER = 0.5     # mm, 45 deg, pocket edge on the inboard face
+PB_LIP_THICKNESS = 1.5            # mm -- PROVISIONAL
+PB_LIP_HOLE_DIA = 16.0            # mm -- PROVISIONAL, the lip bears on the outer ring only
+PB_BOSS_RADIUS = 15.0             # mm -- PROVISIONAL, 3.8 of wall outside the pocket
+PB_TOWER_WIDTH = 2 * PB_BOSS_RADIUS                       # mm, derived, 30.0, along the run
+PB_INBOARD_FACE_Z = -BEARING_WIDTH / 2                    # mm, derived, -3.5
+PB_OUTBOARD_FACE_Z = BEARING_WIDTH / 2 + PB_LIP_THICKNESS   # mm, derived, 5.0
+PB_FOOT_LENGTH = 44.0             # mm -- PROVISIONAL, along the run
+PB_FOOT_HEIGHT = 7.0              # mm -- PROVISIONAL, limited by the returning-run clearance
+PB_FOOT_INBOARD_Z = -16.0         # mm -- PROVISIONAL, machine z = +/-34
+PB_FILLET = 3.0                   # mm -- PROVISIONAL, tower-to-foot concave edges
+PB_INSERT_DIA = PULLEY_INSERT_DIA   # mm, 5.6, the same M4 heat-set insert as the shaft set
+PB_INSERT_POCKET_DEPTH = 6.5      # mm -- PROVISIONAL, blind from the underside, 0.5 skin
+PB_BOLT_X = 14.0                  # mm -- PROVISIONAL, +/-, along the run
+PB_BOLT_Z = -9.75                 # mm -- PROVISIONAL, local, inboard of the tower; machine z = +/-40.25
+PB_SLAT_CLEAR_MIN = 5.0           # mm, every slat to a block or spacer, and the foot top to the returning cleat tips
+
+assert PB_RIB_TIP_DIA < BEARING_OD < PB_POCKET_DIA, "ribs must interfere and the pocket wall clear"
+assert PB_LIP_HOLE_DIA / 2 - BEARING_INNER_RACE_OD / 2 >= 1.5, "lip would touch the inner ring"
+assert PB_LIP_HOLE_DIA < BEARING_OD - 2.0, "less than 1.0 of lip ledge per side"
+assert PB_BOSS_RADIUS <= SHAFT_HEIGHT_ABOVE_PLATE - PB_FOOT_HEIGHT, "boss dips into the foot"
+assert abs(PB_BOLT_Z) + PB_INSERT_DIA / 2 + 1.5 <= abs(PB_FOOT_INBOARD_Z), "insert pocket breaks out of the foot's inboard end"
+assert PB_BOLT_X + PB_INSERT_DIA / 2 + 1.5 <= PB_FOOT_LENGTH / 2, "insert pocket breaks out of the foot's ends"
+
+SPACER_BORE = 8.3                 # mm -- PROVISIONAL, slides on the round part of the shaft
+SPACER_OD = 11.0                  # mm -- PROVISIONAL, lands on the inner ring only
+SHAFT_END_PLAY = 0.4              # mm -- PROVISIONAL, total, per shaft
+SPACER_CHAMFER = 0.3              # mm, all four circular edges
+
+BC_RIB_TIP_DIAS = (21.6, 21.7, 21.8, 21.9, 22.0)   # mm -- PROVISIONAL, one pocket each, tightest first
+BC_POCKET_PITCH = 30.0            # mm -- PROVISIONAL
+BC_LENGTH = len(BC_RIB_TIP_DIAS) * BC_POCKET_PITCH   # mm, derived, 150.0
+BC_WIDTH = 40.0                   # mm -- PROVISIONAL, 30 for the pockets + 10 label strip
+BC_POCKET_EDGE = 15.0             # mm, pocket centres in from one long edge
+BC_THICKNESS = BEARING_WIDTH + PB_LIP_THICKNESS   # mm, derived, 8.5, the block's section
+BC_TEXT_SIZE = 5.0                # mm -- PROVISIONAL
+BC_TEXT_DEPTH = 0.6               # mm -- PROVISIONAL, engraved on the top face
+assert PB_RIB_TIP_DIA in BC_RIB_TIP_DIAS, "the coupon must include the block's own fit"
+
+PLATE_PB_HOLE_DIA = 5.0           # mm -- PROVISIONAL, M4 clearance plus +/-0.5 of alignment float, end plates only
+
+# Bought hardware for the pillow blocks, (item, quantity, use) -- spec-pillow-blocks §1
+PILLOW_BLOCK_HARDWARE = (
+    ("608ZZ bearing", 6, "4 fitted, 2 spare for the coupon test (B1)"),
+    ("M4 heat-set insert", 8, "2 per block, the shaft set's type"),
+    ("M4 x 16 socket-head screw", 8, "up through the end plates"),
+    ("M4 flat washer", 8, "under the screw heads"),
+    ("M12 flat washer", 1, "pressing tool: on the outer ring in the vise"),
+)
 
 # --- Frame -- existing, uncut ---------------------------------------------
 # Owned hardware, modelled as a reference solid in phase 4 (phase4-cad-spec.md
@@ -173,6 +243,14 @@ PLATE_BOLT_M = 5.0         # mm, M5 into frame T-nuts
 PLATE_BOLT_CLEARANCE_DIA = 5.5   # mm, standard M5 clearance hole
 PLATE_BOLT_X = 12.0        # mm, hole offset from the plate's centreline, along the run
 PLATE_BOLT_Z = FRAME_WIDTH / 2 - FRAME_PROFILE / 2   # mm, 127.0, on the rails' top-slot centrelines
+
+# The pillow block's foot on its end plate, 0.5 to spare at each end, and
+# the spacer's length from the shaft set it butts against.
+assert PB_FOOT_LENGTH <= PLATE_WIDTH - 1.0, "pillow block foot overhangs its plate"
+SPACER_LENGTH = (BEARING_Z - BEARING_WIDTH / 2) - SHAFTSET_LENGTH / 2 - SHAFT_END_PLAY / 2   # mm, derived, 16.8
+assert SPACER_OD <= BEARING_INNER_RACE_OD - 1.0, "spacer would touch the shield or outer ring"
+assert SPACER_OD / 2 >= (PULLEY_BORE + PULLEY_BORE_CLEARANCE) / 2 + PULLEY_BORE_CHAMFER + 0.8, "spacer lands on the shaft set's bore chamfer"
+assert SHAFTSET_LENGTH / 2 + SHAFT_END_PLAY / 2 > SHAFT_FLAT_LENGTH / 2, "spacer rides on the shaft flat"
 
 # --- Tilt: hinge, cross-member, clevis, prop -- spec-tilt.md ---------------
 # INCLINE above stays the default; the conveyor rotates about the machine
@@ -397,6 +475,8 @@ PRINT_ROT_CLEVIS = (-90.0, 0.0, 0.0)         # deg, cross-member face down: the 
 PRINT_ROT_PROP_BODY = (180.0, 0.0, 0.0)      # deg, bottom face down, eye up; the nut pocket bridges
 PRINT_ROT_PROP_FOOT = (0.0, 0.0, 0.0)        # deg, top wall up -- native orientation
 PRINT_ROT_KNOB = (0.0, 0.0, 0.0)             # deg, flat face down -- native orientation
+PRINT_ROT_PILLOW_BLOCK = (180.0, 0.0, 0.0)   # deg, outboard (lip) face down, pocket opening up
+PRINT_ROT_SPACER = (0.0, 0.0, 0.0)           # deg, axis vertical, either end down -- native orientation
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------

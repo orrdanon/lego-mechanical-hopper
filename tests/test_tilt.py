@@ -10,8 +10,8 @@ from pytest import approx
 import geometry as g
 import params as p
 from assembly import (
-    COLOURS, PLACEHOLDERS, assembly, belts_group, drivetrain_group, frame_group, plates_group, report, slats_group,
-    tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
+    COLOURS, PLACEHOLDERS, assembly, bearings_group, belts_group, drivetrain_group, frame_group, pillow_blocks_group,
+    plates_group, report, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
 )
 from cut_list import write_cut_list
 from parts.base_ref import base_ref
@@ -72,7 +72,8 @@ def test_hinge_axis_is_on_the_rail_centreline_and_ignores_the_takeup():
 def test_everything_that_tilts_clears_the_base(incline, takeup):
     base = by_label(tilt_base_parts(incline))["base_ref"]
     moving = tilt_frame_parts(incline)
-    for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group):
+    for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group,
+                  pillow_blocks_group, bearings_group, spacers_group):
         moving += list(group(takeup=takeup, incline=incline).children)
     for part in moving:
         assert part.distance_to(base) >= p.BASE_CLEARANCE_MIN, part.label

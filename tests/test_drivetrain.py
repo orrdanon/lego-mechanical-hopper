@@ -9,7 +9,7 @@ from pytest import approx
 
 import geometry as g
 import params as p
-from assembly import drivetrain_group, plates_group, slats_group, tilt_group
+from assembly import drivetrain_group, pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_group
 from parts.belt import belt_band, belt_loop, belt_segment, belt_wrapped
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import slat
@@ -161,7 +161,8 @@ def test_every_slat_clears_the_drivetrain_and_plates(takeup, incline):
     set slide together and the slats follow the loop."""
     fixed = [
         part
-        for group in (drivetrain_group, plates_group, tilt_group)   # the tilt parts too: spec-tilt §8.1, T6
+        for group in (drivetrain_group, plates_group, tilt_group,   # the tilt parts too: spec-tilt §8.1, T6
+                      pillow_blocks_group, spacers_group)          # and spec-pillow-blocks §4
         for part in group(takeup=takeup, incline=incline).children
     ]
     slats = slats_group(detail=True, takeup=takeup, incline=incline).children

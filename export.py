@@ -6,11 +6,13 @@ from pathlib import Path
 from build123d import Part, Rot, export_stl
 
 import params as p
-from parts.coupons import guide_coupon, ring_coupon
+from parts.coupons import bearing_coupon, guide_coupon, ring_coupon
 from parts.hinge import hinge_block, hinge_bracket
+from parts.pillow_block import pillow_block
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft_set import shaft_set
 from parts.slat import slat
+from parts.spacer import spacer
 
 OUT_DIR = Path(__file__).resolve().parent / "out"
 
@@ -26,11 +28,12 @@ def export_part(part: Part, name: str, print_rotation: tuple[float, float, float
 
 def export_all() -> list[Path]:
     """Export every printed part with its print rotation from params: both
-    slat variants, the shaft set, the two calibration coupons and the tilt
+    slat variants, the shaft set, the three calibration coupons, the tilt
     mechanism's printed parts (spec-tilt §8.4; R is the machine's +z side,
-    the right-hand one looking from tail to head). Bought parts (shafts,
-    belts, the cross-member, bolts, nuts, the rod), the base reference and
-    reference/ are never written."""
+    the right-hand one looking from tail to head), and the pillow block and
+    spacer (spec-pillow-blocks §1; four of each). Bought parts (shafts,
+    bearings, belts, the cross-member, bolts, nuts, the rod), the base
+    reference and reference/ are never written."""
     return [
         export_part(slat(cleated=False), "slat_plain", p.PRINT_ROT_PLAIN),
         export_part(slat(cleated=True), "slat_cleated", p.PRINT_ROT_CLEATED),
@@ -46,6 +49,9 @@ def export_all() -> list[Path]:
         export_part(prop_foot(), "prop_foot", p.PRINT_ROT_PROP_FOOT),
         export_part(knob(), "knob", p.PRINT_ROT_KNOB),
         export_part(base_pin_block(), "base_pin_block", p.PRINT_ROT_PIN_BLOCK),
+        export_part(pillow_block(), "pillow_block", p.PRINT_ROT_PILLOW_BLOCK),
+        export_part(spacer(), "spacer", p.PRINT_ROT_SPACER),
+        export_part(bearing_coupon(), "bearing_coupon", p.PRINT_ROT_COUPON),
     ]
 
 
