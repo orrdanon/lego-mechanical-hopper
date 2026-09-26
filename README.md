@@ -13,9 +13,11 @@ ones, and each rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided, written
 for readers outside the project and as the input to new specifications, see
-`docs/design-baseline-v3.md`. Its numbers are taken from `params.py`:
+`docs/design-baseline-v4.md`. Its numbers are taken from `params.py`:
 regenerate them when parameters change. The earlier versions are frozen
 snapshots kept as the reference of the spec written against each:
+`docs/design-baseline-v3.md` (commit `ca50e1a`, before the pillow blocks) for
+`spec-pillow-blocks.md` and anything else written before it,
 `docs/design-baseline-v2.md` (commit `ad71c0e`, before the tilt) for
 `spec-tilt.md`, and `docs/design-baseline-v1.md` (commit `98f4fb1`, with the
 uncorrected belt-back radius) for `drivetrain-spec.md`.

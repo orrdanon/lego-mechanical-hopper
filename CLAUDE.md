@@ -81,8 +81,7 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   groups. Resolutions in `README.md` ("Pillow block resolutions"): names
   reused, the groups take `incline`, criterion 14 swept at the slats' lug
   play, and 17 excepting the spacer-to-shaft-set gap that 18 sets.
-  `docs/design-baseline-v3.md` does not yet include them (spec §6 lists
-  what the next baseline must record).
+  `docs/design-baseline-v4.md` describes the machine with them.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
@@ -95,8 +94,9 @@ update once the migration is done.
 ## Repo layout
 
 ```
-docs/design-baseline-v3.md  self-contained as-built summary for external spec writers (current, includes the tilt);
+docs/design-baseline-v4.md  self-contained as-built summary for external spec writers (current, includes the pillow blocks);
                           derived from params.py -- regenerate its numbers when params change
+docs/design-baseline-v3.md  the same at commit ca50e1a, the input to the pillow-block spec; frozen, superseded by v4
 docs/design-baseline-v2.md  the same at commit ad71c0e, the input to the tilt spec; frozen, superseded by v3
 docs/design-baseline-v1.md  the same at commit 98f4fb1, the input to the drivetrain spec; frozen, superseded by v2
 docs/specs/               the phase specs
