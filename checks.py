@@ -7,15 +7,19 @@ import sys
 
 from itertools import combinations
 
-from build123d import GeomType, Location
+from build123d import Align, Box, GeomType, Location, Pos
 
 import geometry as g
 import params as p
-from assembly import COLOURS, GROUPS, assembly, drivetrain_group, plates_group, slats_group
+from assembly import (
+    COLOURS, GROUPS, assembly, belts_group, drivetrain_group, frame_group, plates_group, slats_group,
+    tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
+)
 from parts.belt import belt_band, belt_segment, belt_wrapped
 from parts.bridge_plate import bridge_plate
 from parts.coupons import guide_coupon, ring_coupon
 from parts.frame import frame
+from parts.prop import frame_clevis
 from parts.shaft import shaft
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import pulley_envelope, slat
@@ -321,14 +325,23 @@ def _check_lug_in_groove():
         assert clash(s.moved(Location((0, 0, sign * 1.1 * play))), shaft_set().moved(g.at(c, 0)))
 
 
+_TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
+
+
 def _check_whole_loop_clearances():
     """The expensive one. Real slat geometry, every slat, against every
-    drivetrain part and plate, across the take-up range."""
-    for takeup in (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX):
-        fixed = list(drivetrain_group(takeup=takeup).children) + list(plates_group(takeup=takeup).children)
-        for s in slats_group(detail=True, takeup=takeup).children:
-            for part in fixed:
-                assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}"
+    drivetrain part, plate and tilt part, across the take-up range and the
+    tilt range (spec-tilt §8.1, which is also its T6)."""
+    for incline in p.TILT_CHECK_ANGLES:
+        for takeup in _TAKEUPS:
+            fixed = [
+                part
+                for group in (drivetrain_group, plates_group, tilt_group)
+                for part in group(takeup=takeup, incline=incline).children
+            ]
+            for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
+                for part in fixed:
+                    assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}, incline {incline}"
 
 
 def _check_slat_gap():
@@ -369,11 +382,182 @@ def _check_loop_geometry():
             raise AssertionError("tail_shaft_t must reject a takeup outside its range")
 
 
+# --- Tilt: hinge, cross-member, clevis, prop -- spec-tilt §8.2 -----------------
+# T1 is the rest of this file passing; T6's sweep is the whole-loop check.
+
+
+def _by_label(parts) -> dict:
+    return {part.label: part for part in parts}
+
+
+def _check_tilt_geometry():
+    assert (g.run_direction(p.TILT_MIN) - g.at(0, incline=p.TILT_MIN).x_axis.direction).length < 1e-9
+    assert (g.at(0, incline=p.TILT_MAX).position).length < 1e-9           # the machine origin does not move
+    assert (g.loop_at(0, incline=p.INCLINE).position - g.loop_at(0).position).length < 1e-12   # 40 deg is today's machine
+    for incline in p.TILT_CHECK_ANGLES:
+        base = g.base_frame(incline)
+        assert abs(g.height_above_base(g.hinge_axis(incline), incline) - p.HINGE_HEIGHT) < 1e-9
+        assert abs(base.position.X - g.hinge_axis(incline).X) < 1e-9
+        assert abs(base.x_axis.direction.X - 1.0) < 1e-9 and abs(base.y_axis.direction.Y - 1.0) < 1e-9
+        assert abs(g.height_above_base(g.prop_pin_b(incline), incline) - p.PROP_PIN_B_Y) < 1e-9
+
+
+def _check_frame_clears_base():
+    """T2, with its control: a base 10 higher is penetrated by the rails'
+    tail corner, which rides about 6 above the real one."""
+    for incline in p.TILT_CHECK_ANGLES:
+        base = _by_label(tilt_base_parts(incline))["base_ref"]
+        for takeup in _TAKEUPS:
+            moving = tilt_frame_parts(incline)
+            for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group):
+                moving += list(group(takeup=takeup, incline=incline).children)
+            for part in moving:
+                gap = part.distance_to(base)
+                assert gap >= p.BASE_CLEARANCE_MIN, f"{part.label} is {gap:.2f} from the base at incline {incline}, takeup {takeup}"
+        assert clash(frame(incline), base.moved(Location((0, 10.0, 0))), tol=1.0)
+
+
+def _check_tail_shaft_height():
+    lo, hi = p.TAIL_SHAFT_HEIGHT_RANGE
+    for incline in p.TILT_CHECK_ANGLES:
+        for takeup in _TAKEUPS:
+            axis = g.at(g.tail_shaft_t(takeup), 0, incline=incline).position
+            assert lo <= g.height_above_base(axis, incline) <= hi
+
+
+def _check_hinge_parts():
+    for incline in p.TILT_CHECK_ANGLES:
+        on_frame, on_base, f = _by_label(tilt_frame_parts(incline)), _by_label(tilt_base_parts(incline)), frame(incline)
+        for side in ("+z", "-z"):
+            bracket, block = on_frame[f"hinge bracket {side}"], on_base[f"hinge block {side}"]
+            assert not clash(bracket, block) and not clash(bracket, f) and not clash(block, f)
+            assert bracket.distance_to(block) >= 0.8
+            assert bracket.distance_to(f) < 0.01                  # bolted to the rail face, not floating
+    assert abs(p.HINGE_HEIGHT - p.HINGE_BOSS_R - 8.0) < 1e-9      # the boss's lowest point, at every angle
+    assert abs(p.HINGE_BOSS_R - p.FRAME_PROFILE / 2 - 2.0) < 1e-9   # and it stands 2.0 proud of the rail
+
+
+def _check_cross_member():
+    assert g.xmember_plate_clearance() >= p.XMEMBER_PLATE_CLEAR
+    assert g.xmember_plate_clearance(190.0) <= 0               # control: over the plate at 177
+    assert -g.cleat_tip_radius() - g.rail_top_offset() >= p.XMEMBER_RETURN_CLEAR
+    xm, f = _by_label(tilt_frame_parts())["cross-member"], frame()
+    assert not clash(xm, f, tol=1.0) and xm.distance_to(f) < 0.01     # square between the rails' inner faces
+    for plate in plates_group().children:
+        assert not clash(xm, plate)
+
+
+def _prop_underside_gap(incline: float, pin_b_x: float = p.PROP_PIN_B_X) -> float:
+    """Least distance from the prop body to the rail underside plane, not
+    counting the part of it inside the clevis."""
+    to_clevis = g.at(p.XMEMBER_T, p.RAIL_UNDERSIDE_OFFSET, incline=incline).inverse()
+    body = _by_label(tilt_prop_parts(incline, pin_b_x))["prop body"].moved(to_clevis)
+    bounds = frame_clevis().bounding_box()
+    far = 4 * p.PROP_BODY_LEN
+    inside = Pos(bounds.min.X, 0, 0) * Box(bounds.size.X, far, far, align=(Align.MIN, Align.CENTER, Align.CENTER))
+    return -(body - inside).bounding_box().max.Y
+
+
+def _prop_hits(incline: float, pin_b_x: float = p.PROP_PIN_B_X) -> list[str]:
+    on_frame, on_base = _by_label(tilt_frame_parts(incline)), _by_label(tilt_base_parts(incline))
+    fixed = list(frame(incline).children) + list(plates_group(incline=incline).children)
+    fixed += [on_frame["cross-member"], on_base["base_ref"]]
+    return [
+        f"{part.label} / {other.label}"
+        for part in tilt_prop_parts(incline, pin_b_x) for other in fixed if clash(part, other)
+    ]
+
+
+def _check_prop_clears_frame():
+    """T7. Control: with pin B at 300 the prop is shorter than its own rod,
+    which comes up through pin A into the cross-member."""
+    for incline in p.TILT_CHECK_ANGLES:
+        assert _prop_hits(incline) == []
+        assert _prop_underside_gap(incline) >= p.PROP_UNDERSIDE_CLEAR
+    assert _prop_hits(p.TILT_MIN, pin_b_x=300.0) == ["prop rod / cross-member"]
+
+
+def _check_prop_swing():
+    """T8. The eyes run CLEVIS_SIDE_CLEAR from the cheeks; anything nearer
+    is the body or foot swinging into a flange, a cheek or the head wall."""
+    for incline in (p.TILT_MIN, p.TILT_MAX):
+        on_frame, on_base, prop = (_by_label(f(incline)) for f in (tilt_frame_parts, tilt_base_parts, tilt_prop_parts))
+        for part, holder in ((prop["prop body"], on_frame["frame clevis"]), (prop["prop foot"], on_base["base pin block"])):
+            assert not clash(part, holder)
+            assert part.distance_to(holder) >= p.CLEVIS_SIDE_CLEAR - 1e-3
+
+
+def _check_prop_length_table():
+    for incline, length, lean in zip(p.TILT_CHECK_ANGLES, (164.1, 189.6, 220.5), (51.8, 30.2, 12.3)):
+        assert abs(g.prop_length(incline) - length) < 0.5
+        assert abs(g.prop_length(incline) - p.prop_length_at(incline)) < 1e-9
+        assert abs(g.prop_lean(incline) - lean) < 1.0
+        assert abs(g.incline_for_length(g.prop_length(incline)) - incline) < 0.05
+    assert all(g.prop_length(a) < g.prop_length(b) for a, b in zip(_TILT_GRID, _TILT_GRID[1:]))
+    assert abs(g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) - 56.4) < 0.1
+    assert abs(g.prop_turns(p.TILT_MAX) - 45.0) < 0.5
+
+
+def _check_length_budget():
+    assert all(margin >= 0 for margin in p.prop_budget())
+    assert abs(p.prop_budget()[2] - 16.5) < 0.1
+    engaged, clear_of_pin_a, stack = p.prop_budget(rod_len=160.0)   # control
+    assert clear_of_pin_a < -1.0 and engaged >= 0 and stack >= 0
+    assert abs(p.FOOT_STACK - 29.6) < 1e-9
+
+
+_TILT_GRID = [p.TILT_MIN + 0.5 * i for i in range(int((p.TILT_MAX - p.TILT_MIN) / 0.5) + 1)]
+
+
+def _check_prop_force():
+    for incline in _TILT_GRID:
+        assert 0 < g.prop_force(incline) < p.PROP_FORCE_MAX
+    for incline, force in zip(p.TILT_CHECK_ANGLES, (98.0, 58.0, 37.0)):
+        assert abs(g.prop_force(incline) - force) < 1.0
+
+
+def _check_prop_force_doubled():
+    """The guard on the weight estimate. See README.md "Prop force at
+    doubled weight"."""
+    worst = max(g.prop_force(incline, 2 * p.TILT_WEIGHT_N) for incline in _TILT_GRID)
+    assert worst < p.PROP_FORCE_MAX, f"{worst:.0f} N"
+
+
+def _check_tilt_parts():
+    for part in tilt_group().children:
+        assert part.is_valid and len(part.solids()) == 1, part.label
+    for incline in p.TILT_CHECK_ANGLES:
+        on_frame, prop = _by_label(tilt_frame_parts(incline)), _by_label(tilt_prop_parts(incline))
+        assert prop["prop body"].distance_to(prop["lock nut"]) < 0.01       # locked up against the body
+        assert on_frame["frame clevis"].distance_to(on_frame["cross-member"]) < 0.01
+
+
+def tilt_report() -> list[str]:
+    """The setting-up table (spec-tilt §8.3) and the informational numbers
+    of §5.4 and T12. This is how the angle gets set by hand."""
+    lines = ["", "Setting up: prop length against incline", "  incline   pin to pin   exposed rod   turns from min"]
+    steps = int((p.TILT_MAX - p.TILT_MIN) / p.SETUP_TABLE_STEP)
+    for incline in (p.TILT_MIN + p.SETUP_TABLE_STEP * i for i in range(steps + 1)):
+        lines.append(
+            f"  {incline:7.1f}   {g.prop_length(incline):10.1f}   {g.prop_exposed_rod(incline):11.1f}   {g.prop_turns(incline):14.1f}"
+        )
+    lines.append("  (exposed rod: bare thread between the knob's jam nut and the lock nut run up to the body)")
+    lines += ["", f"Prop force at {p.TILT_WEIGHT_N:g} N (an estimate until weighed), and head shaft height above the base"]
+    for incline in p.TILT_CHECK_ANGLES:
+        head = g.height_above_base(g.shaft_axis("head", incline), incline)
+        lines.append(f"  {incline:7.1f}   {g.prop_force(incline):6.0f} N   lean {g.prop_lean(incline):5.1f}   head shaft {head:6.1f}")
+    return lines
+
+
 # Checks known to fail for a recorded reason. A check listed here counts as
 # XFAIL when it fails and as a failure of the run when it unexpectedly
-# passes -- at which point remove it from this table. Empty since rev D
-# closed the CENTRE_DIST question.
-_EXPECTED_FAILURES: dict[str, str] = {}
+# passes -- at which point remove it from this table.
+_EXPECTED_FAILURES: dict[str, str] = {
+    "tilt T11: prop force at doubled weight": (
+        "spec-tilt §5.4 contradicts itself: 98 N at 25 deg doubles to 196 N, over PROP_FORCE_MAX = 150 -- "
+        "README \"Prop force at doubled weight\""
+    ),
+}
 
 _CHECKS = [
     ("parameter consistency", _check_parameter_consistency),
@@ -402,6 +586,18 @@ _CHECKS = [
     ("whole-loop clearances", _check_whole_loop_clearances),
     ("slat gap round the loop", _check_slat_gap),
     ("loop geometry", _check_loop_geometry),
+    ("tilt: geometry and base frame", _check_tilt_geometry),
+    ("tilt T2: frame clears the base", _check_frame_clears_base),
+    ("tilt T3: tail shaft height", _check_tail_shaft_height),
+    ("tilt T4: hinge parts", _check_hinge_parts),
+    ("tilt T5/T6: cross-member", _check_cross_member),
+    ("tilt T7: prop clears the frame", _check_prop_clears_frame),
+    ("tilt T8: prop swing", _check_prop_swing),
+    ("tilt T9: prop length table", _check_prop_length_table),
+    ("tilt T10: length budget", _check_length_budget),
+    ("tilt T11: prop force", _check_prop_force),
+    ("tilt T11: prop force at doubled weight", _check_prop_force_doubled),
+    ("tilt: parts", _check_tilt_parts),
 ]
 
 
@@ -427,4 +623,6 @@ def run_checks() -> bool:
 
 
 if __name__ == "__main__":
-    sys.exit(0 if run_checks() else 1)
+    passed = run_checks()
+    print("\n".join(tilt_report()))
+    sys.exit(0 if passed else 1)

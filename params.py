@@ -174,6 +174,181 @@ PLATE_BOLT_CLEARANCE_DIA = 5.5   # mm, standard M5 clearance hole
 PLATE_BOLT_X = 12.0        # mm, hole offset from the plate's centreline, along the run
 PLATE_BOLT_Z = FRAME_WIDTH / 2 - FRAME_PROFILE / 2   # mm, 127.0, on the rails' top-slot centrelines
 
+# --- Tilt: hinge, cross-member, clevis, prop -- spec-tilt.md ---------------
+# INCLINE above stays the default; the conveyor rotates about the machine
+# origin and the base moves in machine coordinates (spec-tilt §2.1).
+
+TILT_MIN = 25.0                   # deg -- PROVISIONAL
+TILT_MAX = 55.0                   # deg -- PROVISIONAL
+TILT_CHECK_ANGLES = (25.0, 40.0, 55.0)   # deg, the inclines every tilt check samples
+assert TILT_MIN <= INCLINE <= TILT_MAX and TILT_CHECK_ANGLES[0] == TILT_MIN and TILT_CHECK_ANGLES[-1] == TILT_MAX
+
+RAIL_CENTRE_OFFSET = -(SHAFT_HEIGHT_ABOVE_PLATE + PLATE_THICKNESS + FRAME_PROFILE / 2)   # mm, -67.0, rail centreline from the shaft axis
+RAIL_UNDERSIDE_OFFSET = RAIL_CENTRE_OFFSET - FRAME_PROFILE / 2                          # mm, -77.0
+
+# Bought hardware, catalogue sizes.
+M8_PITCH = 1.25                   # mm
+M8_DIA = 8.0                      # mm, bolt shank and threaded rod
+M8_HEX_AF = 13.0                  # mm, bolt head and nut, across flats
+M8_HEAD_THK = 5.3                 # mm, hex bolt head
+M8_NUT_THK = 6.5                  # mm, plain hex nut
+M8_NYLOCK_THK = 8.0               # mm
+M8_WASHER_OD = 16.0               # mm
+M8_WASHER_THK = 1.6               # mm
+M8_PIN_BOLT_LEN = 45.0            # mm, all four pivot bolts
+M5_CLEARANCE_DIA = 5.5            # mm
+M5_CBORE_DIA = 9.0                # mm, socket head 8.5
+M5_CBORE_DEPTH = 5.0              # mm
+HEX_POCKET_CLEAR = 0.3            # mm, added to the across-flats of every printed hex pocket
+NUT_POCKET_DEPTH = 6.8            # mm, captured M8 nut, prop body and knob
+BASE_FIXING_HOLE = 5.0            # mm, through-holes in every base-side foot; fastener OPEN
+
+# Hinge -- spec-tilt §2.2, §3
+HINGE_T = -50.0                   # mm -- PROVISIONAL, 10 in from the frame's tail end; fixed to the frame, not the take-up
+HINGE_OFFSET = RAIL_CENTRE_OFFSET   # mm, -67.0
+HINGE_HEIGHT = 20.0               # mm -- PROVISIONAL, hinge axis above the base top face
+HINGE_BRKT_T0 = FRAME_T_START     # mm, -60.0 -- PROVISIONAL, bracket plate along the run
+HINGE_BRKT_T1 = -20.0             # mm -- PROVISIONAL
+HINGE_BRKT_THK = 10.0             # mm -- PROVISIONAL, outboard of the rail face
+HINGE_BOSS_R = 12.0               # mm -- PROVISIONAL, 2.0 proud of the rail top, bottom and tail end
+HINGE_PIN_HOLE = 8.0              # mm -- PROVISIONAL, the bolt is fixed in the bracket
+HINGE_HEAD_POCKET_DEPTH = 5.5     # mm -- PROVISIONAL, hex pocket open to the rail face
+HINGE_BRKT_BOLT_T = (-35.0, -25.0)   # mm -- PROVISIONAL, 2 x M5 into the rail's outer slot
+HINGE_GAP = 1.0                   # mm -- PROVISIONAL, bracket to block
+HINGE_BLOCK_THK = 20.0            # mm -- PROVISIONAL, across the machine
+HINGE_BLOCK_WIDTH = 30.0          # mm -- PROVISIONAL, upright along x; its top is a half-round of this diameter on the axis
+HINGE_BUSH_HOLE = 8.4             # mm -- PROVISIONAL, running fit on the M8 bolt
+HINGE_BLOCK_MIN_WALL = 8.0        # mm, least material above the bushing
+HINGE_FOOT_LEN = 60.0             # mm -- PROVISIONAL, flange along x
+HINGE_FOOT_WIDTH = 20.0           # mm -- PROVISIONAL, flange across, outboard of the upright
+HINGE_FOOT_THK = 5.0              # mm -- PROVISIONAL
+HINGE_FOOT_HOLE_X = (-22.5, -7.5, 7.5, 22.5)   # mm -- PROVISIONAL, one row down the flange centreline
+assert HINGE_BOSS_R < HINGE_HEIGHT, "hinge boss would touch the base"
+assert HINGE_BLOCK_WIDTH / 2 - HINGE_BUSH_HOLE / 2 >= HINGE_BLOCK_MIN_WALL, "too little hinge block above the bushing"
+
+# Cross-member and frame clevis -- spec-tilt §4
+XMEMBER_LEN = FRAME_INNER_WIDTH   # mm, 234.0, between the rails' inner faces
+XMEMBER_T = 221.0                 # mm -- PROVISIONAL, centre, in the gap between the plates at 177 and 265.5
+XMEMBER_PLATE_CLEAR = 5.0         # mm, minimum along the run to either plate footprint
+PROP_PIN_A_T = XMEMBER_T          # mm -- PROVISIONAL
+CLEVIS_PIN_DROP = 10.0            # mm -- PROVISIONAL, pin A below the rail underside
+PROP_PIN_A_OFFSET = RAIL_UNDERSIDE_OFFSET - CLEVIS_PIN_DROP   # mm, -87.0
+PROP_EYE_W = 12.0                 # mm -- PROVISIONAL, body and foot eye width, along the pin
+CLEVIS_SIDE_CLEAR = 0.3           # mm, each side of an eye, frame clevis and base pin block
+CLEVIS_GAP = PROP_EYE_W + 2 * CLEVIS_SIDE_CLEAR   # mm, 12.6
+CLEVIS_CHEEK_THK = 6.0            # mm -- PROVISIONAL
+CLEVIS_PIN_HOLE = 8.2             # mm -- PROVISIONAL
+CLEVIS_PIN_WALL = 7.0             # mm -- PROVISIONAL, material below pin A
+CLEVIS_CHEEK_R = CLEVIS_PIN_HOLE / 2 + CLEVIS_PIN_WALL   # mm, 11.1, cheek nose radius about pin A
+CLEVIS_BASE_THK = 5.0             # mm -- PROVISIONAL, flange against the cross-member
+CLEVIS_WINDOW_X = M8_WASHER_OD / 2 + 2.0   # mm, 10.0, the flange is open tailward of this -- README "Frame clevis"
+CLEVIS_HEAD_X = 16.0              # mm -- PROVISIONAL, head-side end of the flange and of the wall joining the cheeks
+CLEVIS_WINDOW_Z = 35.0            # mm -- PROVISIONAL, the pin A bolt, washer and nut live inside this
+CLEVIS_BOLT_Z = 42.0              # mm -- PROVISIONAL, 2 x M5, +/-; spec-tilt has 15.0 -- README "Frame clevis"
+CLEVIS_WIDTH = 100.0              # mm -- PROVISIONAL, across the machine
+assert CLEVIS_WINDOW_Z > M8_PIN_BOLT_LEN - (CLEVIS_GAP / 2 + CLEVIS_CHEEK_THK), "pin A bolt end outside its window"
+assert CLEVIS_BOLT_Z - M5_CBORE_DIA / 2 > CLEVIS_WINDOW_Z, "clevis fixing bolt breaks into the pin A window"
+
+# Prop -- spec-tilt §5
+PROP_PIN_B_X = 125.0              # mm -- PROVISIONAL, horizontal from the hinge axis
+PROP_PIN_B_Y = 15.0               # mm -- PROVISIONAL, above the base
+PROP_BODY_LEN = 90.0              # mm -- PROVISIONAL, pin A to the body's bottom face
+PROP_BODY_DIA = 18.0              # mm -- PROVISIONAL
+PROP_EYE_HOLE = 8.4               # mm -- PROVISIONAL, body and foot
+PROP_EYE_LEN = 12.0               # mm -- PROVISIONAL, pin A to where the flat eye becomes the round body
+PROP_NUT_TOP = 8.0                # mm -- PROVISIONAL, captured nut's top face above the body bottom
+PROP_ROD_BORE = 9.0               # mm -- PROVISIONAL
+PROP_ROD_BORE_STOP = 12.0         # mm -- PROVISIONAL, the bore ends this far below pin A
+PROP_ROD_ENGAGE_MIN = 2.0         # mm, rod tip above the captured nut at full length
+FOOT_LEN = 28.0                   # mm -- PROVISIONAL, pin B to the foot's top face
+FOOT_DIA = 24.0                   # mm -- PROVISIONAL, round the pocket
+FOOT_POCKET_DIA = 16.0            # mm -- PROVISIONAL, the two jammed nuts turn freely in it
+FOOT_POCKET_LEN = 15.0            # mm -- PROVISIONAL
+FOOT_POCKET_PLAY = 0.3            # mm, jammed nuts to the underside of the top wall
+FOOT_WALL_THK = 5.0               # mm -- PROVISIONAL, takes the prop's thrust
+FOOT_WALL_HOLE = 8.6              # mm -- PROVISIONAL, also the knob's rod hole
+FOOT_WINDOW_W = 14.0              # mm -- PROVISIONAL, side window to fit and jam the nuts -- README "Prop foot"
+ROD_BOTTOM_Z = 10.0               # mm -- PROVISIONAL, rod end above pin B
+ROD_LEN = 136.0                   # mm -- PROVISIONAL, mid-window of the length budget below
+KNOB_DIA = 40.0                   # mm -- PROVISIONAL
+KNOB_THK = 12.0                   # mm -- PROVISIONAL
+KNOB_LOBES = 8                    # count -- PROVISIONAL
+KNOB_SCALLOP_R = 5.0              # mm -- PROVISIONAL, finger scallops centred on the rim
+STACK_CLEARANCE = 3.0             # mm, jam nut to lock nut at minimum length
+FOOT_STACK = M8_WASHER_THK + KNOB_THK + M8_NUT_THK + STACK_CLEARANCE + M8_NUT_THK   # mm, derived, 29.6
+PIN_BLOCK_GAP = CLEVIS_GAP        # mm, 12.6
+PIN_BLOCK_CHEEK_THK = 6.0         # mm -- PROVISIONAL
+PIN_BLOCK_PIN_HOLE = 8.2          # mm -- PROVISIONAL
+PIN_BLOCK_CHEEK_R = 7.0           # mm -- PROVISIONAL, nose radius above pin B; the foot widens just past it
+PIN_BLOCK_LEN = 70.0              # mm -- PROVISIONAL, foot plate along x
+PIN_BLOCK_WIDTH = 50.0            # mm -- PROVISIONAL, across
+PIN_BLOCK_THK = 5.0               # mm -- PROVISIONAL
+PIN_BLOCK_HOLE_X = 27.0           # mm -- PROVISIONAL, +/-, 4 base fixing holes
+PIN_BLOCK_HOLE_Z = 18.0           # mm -- PROVISIONAL, +/-
+assert FOOT_LEN - FOOT_WALL_THK - FOOT_POCKET_LEN > PIN_BLOCK_CHEEK_R, "foot widens inside the pin block's cheeks"
+assert FOOT_POCKET_LEN >= 2 * M8_NUT_THK + FOOT_POCKET_PLAY, "foot pocket too short for two jammed nuts"
+
+
+def prop_length_at(incline: float, pin_b_x: float = PROP_PIN_B_X) -> float:
+    """Pin A to pin B at `incline`, closed form, for the budget below.
+    geometry.prop_length() is the same distance built from at() and
+    base_frame(), and the tests hold the two together."""
+    theta = math.radians(incline)
+    dt, do = PROP_PIN_A_T - HINGE_T, PROP_PIN_A_OFFSET - HINGE_OFFSET
+    ax = dt * math.cos(theta) - do * math.sin(theta)
+    ay = dt * math.sin(theta) + do * math.cos(theta)
+    return math.hypot(ax - pin_b_x, ay - (PROP_PIN_B_Y - HINGE_HEIGHT))
+
+
+def prop_budget(rod_len: float = ROD_LEN) -> tuple[float, float, float]:
+    """Margins, mm, of the three conditions that make the prop buildable
+    (spec-tilt §5.3); each must be >= 0. In order: rod still engaged in the
+    captured nut at full length, rod tip clear of pin A at minimum length,
+    and the stack on the foot clear of the body at minimum length."""
+    l_min, l_max = prop_length_at(TILT_MIN), prop_length_at(TILT_MAX)
+    rod_tip = ROD_BOTTOM_Z + rod_len
+    return (
+        rod_tip - (l_max - PROP_BODY_LEN + PROP_NUT_TOP + PROP_ROD_ENGAGE_MIN),
+        (l_min - PROP_ROD_BORE_STOP) - rod_tip,
+        (l_min - PROP_BODY_LEN) - (FOOT_LEN + FOOT_STACK),
+    )
+
+
+assert prop_budget()[0] >= 0, "rod leaves the captured nut at TILT_MAX"
+assert prop_budget()[1] >= 0, "rod reaches pin A at TILT_MIN"
+assert prop_budget()[2] >= 0, "the stack on the foot does not fit under the body at TILT_MIN"
+
+# Loads -- spec-tilt §5.4, informational
+TILT_WEIGHT_N = 34.0              # N -- PROVISIONAL, an estimate until weighed
+TILT_CG_T = 220.0                 # mm -- PROVISIONAL
+TILT_CG_OFFSET = -40.0            # mm -- PROVISIONAL
+PROP_FORCE_MAX = 150.0            # N
+
+# Base -- OPEN; a reference slab whose top face is the base plane (spec-tilt §6)
+BASE_REF_THK = 20.0               # mm
+BASE_REF_BEHIND = 120.0           # mm, behind the hinge axis
+BASE_REF_AHEAD = 600.0            # mm, ahead of it
+BASE_REF_HALF_WIDTH = 200.0       # mm
+BASE_CLEARANCE_MIN = 4.0          # mm, everything that tilts, to the base
+TAIL_SHAFT_HEIGHT_RANGE = (94.0, 108.0)   # mm, tail shaft axis above the base over all angles and take-ups
+XMEMBER_RETURN_CLEAR = 15.0       # mm, cross-member top face below the returning cleat tips
+PROP_UNDERSIDE_CLEAR = 3.0        # mm, prop body to the rail underside plane, outside the clevis
+SETUP_TABLE_STEP = 2.5            # deg, the setting-up table's rows
+
+# Bought hardware for the tilt, (item, quantity, use) -- spec-tilt §7
+TILT_HARDWARE = (
+    (f"M8 x {M8_PIN_BOLT_LEN:g} hex bolt", 2, "hinge pins (head in the bracket pocket)"),
+    (f"M8 x {M8_PIN_BOLT_LEN:g} hex bolt", 2, "pins A and B"),
+    ("M8 nylock nut", 4, "one per pin"),
+    ("M8 washer", 5, "hinge x 2, pins A and B x 2, under the knob x 1"),
+    (f"M8 threaded rod, {ROD_LEN:g} long", 1, "prop adjuster (cut from stock)"),
+    ("M8 hex nut", 6, "body (captured), lock, knob (captured), knob jam, two jammed in the foot pocket"),
+    ("M5 x 12 + T-nut", 6, "hinge brackets x 4, clevis x 2"),
+    ("2020 corner bracket + M5 x 10 + T-nut", 4, "cross-member"),
+    (f"2020, {XMEMBER_LEN:g} long", 1, "cross-member"),
+    ("Base fasteners", 12, "OPEN; depends on the base"),
+)
+
 # --- Slat -----------------------------------------------------------------
 
 SLAT_PITCH = 18.0      # mm, 6 belt teeth -- rev D; divides the 828mm belt into 46 slats
@@ -215,6 +390,13 @@ PRINT_ROT_PLAIN = (180.0, 0.0, 0.0)     # deg, top face down, tabs up
 PRINT_ROT_CLEATED = (180.0, 0.0, 0.0)   # deg, cleat tip down, tabs up
 PRINT_ROT_SHAFT_SET = (0.0, 0.0, 0.0)   # deg, axis vertical, either end down -- native orientation
 PRINT_ROT_COUPON = (0.0, 0.0, 0.0)      # deg, both coupons, axis vertical, flat on the bed -- native orientation
+PRINT_ROT_HINGE_BRACKET = {1: (0.0, 0.0, 0.0), -1: (180.0, 0.0, 0.0)}   # deg, by side: rail face down -- native for +z, turned over for its mirror
+PRINT_ROT_HINGE_BLOCK = (90.0, 0.0, 0.0)     # deg, foot down: local +y (up) to the bed's +z
+PRINT_ROT_PIN_BLOCK = (90.0, 0.0, 0.0)       # deg, plate down
+PRINT_ROT_CLEVIS = (-90.0, 0.0, 0.0)         # deg, cross-member face down: the body hangs into local -y
+PRINT_ROT_PROP_BODY = (180.0, 0.0, 0.0)      # deg, bottom face down, eye up; the nut pocket bridges
+PRINT_ROT_PROP_FOOT = (0.0, 0.0, 0.0)        # deg, top wall up -- native orientation
+PRINT_ROT_KNOB = (0.0, 0.0, 0.0)             # deg, flat face down -- native orientation
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------

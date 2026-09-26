@@ -1,6 +1,8 @@
-"""Cut list for the plywood parts. Writes out/cut_list.txt -- the rectangle
-sizes and hole positions you actually need at the saw. Plywood parts are
-never exported as STL (phase 2 §8.6, phase 4 §9.6)."""
+"""Cut list for everything sawn rather than printed: the plywood bridge
+plates, and the tilt mechanism's cross-member and threaded rod (spec-tilt
+§8.4). Writes out/cut_list.txt -- the sizes and hole positions you actually
+need at the saw. None of these is exported as STL (phase 2 §8.6, phase 4
+§9.6)."""
 
 from pathlib import Path
 
@@ -24,10 +26,23 @@ def bridge_plate_lines() -> list[str]:
     ]
 
 
+def tilt_lines() -> list[str]:
+    """The two cut lengths of the tilt mechanism."""
+    return [
+        "Cross-member  x1",
+        f"  material : {p.FRAME_PROFILE:g}{p.FRAME_PROFILE:g} aluminium extrusion",
+        f"  length   : {p.XMEMBER_LEN:g} mm, ends square  (fits between the rails' inner faces)",
+        "",
+        "Prop rod  x1",
+        f"  material : M{p.M8_DIA:g} threaded rod",
+        f"  length   : {p.ROD_LEN:g} mm  (deburr both ends so the nuts start)",
+    ]
+
+
 def write_cut_list() -> Path:
     OUT_DIR.mkdir(exist_ok=True)
     path = OUT_DIR / "cut_list.txt"
-    lines = ["Plywood cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""]
+    lines = ["Cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""] + tilt_lines() + [""]
     path.write_text("\n".join(lines))
     return path
 

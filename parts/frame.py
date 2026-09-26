@@ -51,14 +51,26 @@ def rail(length: float) -> Part:
     return body - grooves
 
 
-def frame() -> Compound:
+def cross_member() -> Part:
+    """The prop's cross-member (spec-tilt §4.1): XMEMBER_LEN of 2020 turned
+    to run along local z, between the rails' inner faces and flush with
+    them. Local origin at the centre of the top face, so it is placed at
+    at(XMEMBER_T, rail_top_offset()) like an end member. Cut, not printed:
+    a reference solid and a cut-list entry."""
+    member = Rot(0.0, 90.0, 0.0) * rail(p.XMEMBER_LEN)
+    member.label = "cross-member"
+    return member
+
+
+def frame(incline: float = p.INCLINE) -> Compound:
     """The complete rectangle: two rails of FRAME_LENGTH at
     lateral = +/- rail_lateral(), and two end members of FRAME_END_LENGTH
     spanning between them at each end. All four top faces are coplanar at
     rail_top_offset().
 
     Exception to phase 4 rule 2.2: this Compound is returned already
-    positioned in the machine frame (see module docstring).
+    positioned in the machine frame (see module docstring), tilted to
+    `incline`.
     """
     long_rail = rail(p.FRAME_LENGTH)
     # An end member is the same rail with its length turned to run along
@@ -67,10 +79,10 @@ def frame() -> Compound:
 
     inset = p.FRAME_PROFILE / 2   # end members sit just inside the rail ends
     members = [
-        ("rail +z", long_rail.moved(at(frame_t_centre(), rail_top_offset(), lateral=rail_lateral()))),
-        ("rail -z", long_rail.moved(at(frame_t_centre(), rail_top_offset(), lateral=-rail_lateral()))),
-        ("end tail", end_member.moved(at(p.FRAME_T_START + inset, rail_top_offset()))),
-        ("end head", end_member.moved(at(frame_t_end() - inset, rail_top_offset()))),
+        ("rail +z", long_rail.moved(at(frame_t_centre(), rail_top_offset(), rail_lateral(), incline))),
+        ("rail -z", long_rail.moved(at(frame_t_centre(), rail_top_offset(), -rail_lateral(), incline))),
+        ("end tail", end_member.moved(at(p.FRAME_T_START + inset, rail_top_offset(), incline=incline))),
+        ("end head", end_member.moved(at(frame_t_end() - inset, rail_top_offset(), incline=incline))),
     ]
     children = []
     for label, solid in members:
