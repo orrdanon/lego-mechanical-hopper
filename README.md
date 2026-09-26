@@ -55,10 +55,11 @@ python3 assembly.py frame           # just the frame
 python3 assembly.py frame plates    # both, in position
 python3 assembly.py plates --detail
 python3 assembly.py frame plates drivetrain belts slats   # the machine
+python3 assembly.py plates pillow_blocks bearings spacers drivetrain   # the shaft mounts
 python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
 python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
 python3 assembly.py --incline=55    # the whole machine tilted; INCLINE (40) if not given
-python3 assembly.py --report        # no viewer: each group's members, and the tilt's bought hardware
+python3 assembly.py --report        # no viewer: each group's members, and the bought hardware
 ```
 
 A name is a group, or `group:pattern` for just the members whose label
@@ -120,6 +121,11 @@ The tilt mechanism adds `hinge_bracket_R/L`, `hinge_block_R/L`,
 (spec-tilt §8.4). R is the machine's +z side, the right-hand one looking
 from tail to head. `prop_body` has a closed nut pocket: pause the print at
 its ceiling and drop the M8 nut in.
+
+The pillow blocks add `pillow_block` (print four, lip face down, no
+support), `spacer` (print four, axis vertical) and `bearing_coupon` (print
+first, lip face down like the block; see "Pillow blocks" below). The
+608ZZ bearings are bought and not exported.
 
 The frame and shafts are owned or bought hardware, the belt is bought, and
 the bridge plates are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
@@ -277,7 +283,10 @@ Set by drivetrain-spec §13, all provisional until then:
 | `LUG_DEPTH`, `LUG_TIP_WIDTH`, `LUG_LENGTH`, `GROOVE_FLANK_CLEAR`, `GUIDE_WIDTH` | 4.0, 3.0, 8.0, 0.5, 16.0 | step 4, guide coupon |
 | `DRUM_DIA`, `PULLEY_SKIRT_R`, `GRUB_Z`, `PULLEY_INSERT_DEPTH` | 26.0, 16.8, 17.5, 6.0 | step 5, first shaft set |
 | `TAIL_TAKEUP_MIN`, `TAIL_TAKEUP_MAX` | -4.0, 2.0 | step 6, assembly |
-| `SHAFT_HEIGHT_ABOVE_PLATE` | 48.0 | measuring the pillow blocks (rev B §8) |
+| `PB_RIB_TIP_DIA` | 21.8 | pillow-block test B1, bearing coupon (below) |
+| `PB_LIP_HOLE_DIA` | 16.0 | pillow-block test B2 |
+| `PB_FOOT_*`, `PB_BOSS_RADIUS` | 44.0 x 7.0, 15.0 | pillow-block test B3, first block |
+| `SHAFT_END_PLAY`, `SPACER_BORE` | 0.4, 8.3 | step 6, assembly |
 
 ### Physical calibration, in order
 
@@ -294,8 +303,9 @@ and each gates the next (drivetrain-spec §13 has the full procedure):
 4. **Guide coupon** -- with that slat, the lug enters from a 1 mm offset
    without catching and the slat returns to centre.
 5. **First shaft set.** Only now.
-6. **Assembly and axial set-up** -- both shaft sets at the same z, by caliper
-   from the pillow blocks; tension by sliding the tail plate until a finger
+6. **Assembly and axial set-up** -- slide each shaft set until both spacers
+   are snug, back it off by about half `SHAFT_END_PLAY`, tighten the grubs;
+   **no shaft collars** (spec-pillow-blocks §1.1, §8); tension by sliding the tail plate until a finger
    press at mid-span deflects the belt about 5 mm.
 7. **Creep test** -- paint-mark slats against belt teeth, 1000 revolutions,
    check drift. The fallback if slats walk is a keyed pin through the belt
@@ -495,6 +505,61 @@ revisit `TILT_MIN` before raising this again.
   (`PROP_BODY_DIA` 18.0 against 15.4 across corners). It is the spec's
   figure and is in compression; thicken the body if it splits.
 
+## Pillow blocks
+
+`docs/specs/spec-pillow-blocks.md`. Each shaft runs in two 608ZZ pressed
+into printed PETG pillow blocks bolted to the end plates, which are their
+own standoffs: bearing centre at `SHAFT_HEIGHT_ABOVE_PLATE` = 48.0, now
+fixed. The two blocks on a shaft are the same part turned end for end, lips
+outboard, and a printed spacer tube between each bearing's inner ring and
+the shaft set captures the shaft axially between the two lips. Three groups:
+`pillow_blocks`, `bearings`, `spacers`; the tail members slide with the
+take-up. The end plates gain four Ø5.0 holes each (cut list).
+
+The press fit is six crush ribs on a 21.8 tip circle. `bearing_pocket()`
+cuts the pocket, ribs and lip hole for both the block and the bearing
+coupon, so **print the coupon first** (tests B1-B2 in spec §7): press a
+bearing into each pocket, loosest first, and set `PB_RIB_TIP_DIA` to the
+tightest pocket where it seats flat, stays in inverted and still spins
+freely. `python3 assembly.py --report` lists the bought hardware.
+
+## Pillow block resolutions
+
+The spec was written against baseline v2, before the tilt.
+
+- **Existing names reused**, as the spec asks: its `SHAFT_HEIGHT` is
+  `SHAFT_HEIGHT_ABOVE_PLATE`; its `BEARING_Z` is derived as
+  `BEARING_SPACING / 2`, not a second copy of 100 / 2; its bridge-plate
+  "45.0" in the foot assertion is `PLATE_WIDTH`.
+- **Incline.** The three groups take `incline` like every other group, and
+  join T2's "everything that tilts clears the base" and the 3 x 3 whole-loop
+  clash sweep; the blocks and spacers are fixed parts in that sweep, as §4
+  asks. The distance criteria (14, 16) run at the three take-ups only: the
+  blocks move with the conveyor, so the incline cannot change them.
+- **Worst-case play (14).** The spec's 5.79 is the tower's inboard face to
+  the slat ends with the slat slid across by its lug play,
+  `geometry.slat_lateral_play()` = 0.707 (6.5 - 0.707). The model's slats
+  are centred, so the sweep is run with the blocks shifted by -/+ the play,
+  the same relative motion, and pinned at 5.79. Unshifted, the minimum is
+  the foot top to the returning cleat tips, 6.05, and that is pinned too.
+- **17 vs 18.** "Minimum distance >= 1.0 except the designed contacts" also
+  has to except the spacer facing its own shaft set's end, which 18 puts at
+  0.2 by design. That pair is held to 18's 0.2 +/- 0.01 instead.
+- **21** is checked from each placed block's location, at two points on its
+  local axis, against the shaft's; §5.1's probes are what tie the pocket to
+  that local axis.
+- **Pinned bands.** First build: block 16.65 cm^3 (spec estimate 16.4),
+  press-fit clash 3.34 mm^3 at 21.8 (estimate about 3). Both are pinned at
+  +/-3 % inside the spec's wider ranges.
+- **Ribs.** Each rib's flanks run on past the pocket wall by the mouth
+  chamfer so the rib joins the wall across its whole base rather than
+  along a chord just inside it; the lead-in is a cone from the wall at the
+  mouth to the tip circle at `PB_RIB_LEAD_IN`, so every rib ramps the same.
+- **Not asserted.** §2.2 says head clearance is "asserted in geometry
+  terms; see §5", but §5 has no such criterion. The M4 heads are under the
+  end plates at z = +/-40.25, between the rails, where nothing else is
+  modelled.
+
 ## Missing parameters
 
 None. Every dimension needed so far is present in `params.py`. The
@@ -507,13 +572,16 @@ block's flange, both clevises' cheeks, the foot's pocket and wall, the base
 reference slab, the check criteria), plus those its resolutions needed:
 `CLEVIS_WINDOW_X/Z`, `CLEVIS_HEAD_X`, `CLEVIS_BOLT_Z`, `PROP_EYE_LEN`,
 `FOOT_DIA`, `FOOT_WINDOW_W`, `PIN_BLOCK_CHEEK_R` and the knob's scallops.
+The pillow blocks added `BC_POCKET_EDGE` (the spec's "15.0 from one long
+edge"), `PB_SLAT_CLEAR_MIN` (its 5.0 criteria) and the bought-hardware
+table `PILLOW_BLOCK_HARDWARE`.
 
 ## Provisional parameters
 
-`SHAFT_HEIGHT_ABOVE_PLATE` (48mm) is a best guess, not a measurement, per
-rev B §8 -- it depends on the pillow blocks actually bought; measure before
-modelling the standoff that sets this height. The drivetrain's provisional
-values are tabulated under "Parameters awaiting physical calibration".
+`SHAFT_HEIGHT_ABOVE_PLATE` (48mm) is no longer provisional: the printed
+pillow block is its own standoff and is designed to it (spec-pillow-blocks
+§2.2). The drivetrain's and the pillow blocks' provisional values are
+tabulated under "Parameters awaiting physical calibration".
 
 The belt is the HTD-3M, 15mm wide, 828mm pitch length, 276-tooth loop chosen
 in rev D. Its thickness (2.4) and pitch line differential (0.381) are

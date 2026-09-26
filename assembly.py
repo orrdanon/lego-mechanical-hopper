@@ -13,6 +13,7 @@ Usage:
     python assembly.py frame plates    # both
     python assembly.py plates --detail
     python assembly.py frame plates drivetrain belts slats
+    python assembly.py plates pillow_blocks bearings spacers drivetrain
     python assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"
     python assembly.py drivetrain belts "slats:slat ?" --detail   # slats 0-9 only
     python assembly.py --incline=55    # tilted; INCLINE if not given
@@ -27,7 +28,7 @@ import sys
 from fnmatch import fnmatchcase
 from typing import Callable
 
-from build123d import Box, Compound, Location, Pos
+from build123d import Box, Compound, Location, Pos, Rot
 
 import params as p
 from geometry import (
@@ -35,15 +36,18 @@ from geometry import (
     prop_foot_frame, prop_length, rail_top_offset, tail_shaft_t,
 )
 from parts.base_ref import base_ref
+from parts.bearing import bearing
 from parts.belt import belt_band, belt_loop
 from parts.bridge_plate import bridge_plate
 from parts.frame import cross_member, frame
 from parts.hardware import hex_nut, pin_bolt, threaded_rod, washer
 from parts.hinge import hinge_block, hinge_bracket
+from parts.pillow_block import pillow_block
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft import shaft
 from parts.shaft_set import shaft_set
 from parts.slat import slat
+from parts.spacer import spacer
 
 
 def _group(label: str, children: list) -> Compound:
@@ -84,6 +88,52 @@ def drivetrain_group(detail: bool = False, takeup: float = 0.0, incline: float =
         parts.append(_labelled(shaft().moved(at(t, 0, incline=incline)), f"{end} shaft"))
         parts.append(_labelled(shaft_set().moved(at(t, 0, incline=incline)), f"{end} shaft set"))
     return _group("drivetrain", parts)
+
+
+def _shaft_ends(takeup: float) -> tuple[tuple[str, float], ...]:
+    """(name, run parameter) of each shaft; the tail one slides with `takeup`."""
+    return (("tail", tail_shaft_t(takeup)), ("head", p.CENTRE_DIST))
+
+
+# The -z member of each pair below is the +z part turned end for end.
+_END_FOR_END = Rot(0, 180, 0)
+_SIDES = (("+z", 1), ("-z", -1))
+
+
+def pillow_blocks_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
+    """Four pillow blocks on the end plates, bearing centres at z =
+    +/-BEARING_Z, lips outboard; the tail two slide with `takeup`
+    (spec-pillow-blocks §4). `detail` is ignored."""
+    return _group("pillow_blocks", [
+        _labelled(
+            pillow_block().moved(at(t, plate_top_offset(), sign * p.BEARING_Z, incline) * (_END_FOR_END if sign < 0 else Location())),
+            f"{end} block {name}",
+        )
+        for end, t in _shaft_ends(takeup) for name, sign in _SIDES
+    ])
+
+
+def bearings_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
+    """Four 608ZZ, on the shaft axes at z = +/-BEARING_Z. `detail` is ignored."""
+    return _group("bearings", [
+        _labelled(bearing().moved(at(t, 0, sign * p.BEARING_Z, incline)), f"{end} bearing {name}")
+        for end, t in _shaft_ends(takeup) for name, sign in _SIDES
+    ])
+
+
+def spacers_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
+    """Four spacer tubes, each from its bearing's inner face at z =
+    +/-(BEARING_Z - BEARING_WIDTH/2) inboard toward the shaft set.
+    Axisymmetric, so a static placement is exact though they turn with
+    the shaft. `detail` is ignored."""
+    face = p.BEARING_Z - p.BEARING_WIDTH / 2
+    return _group("spacers", [
+        _labelled(
+            spacer().moved(at(t, 0, sign * face, incline) * (_END_FOR_END if sign > 0 else Location())),
+            f"{end} spacer {name}",
+        )
+        for end, t in _shaft_ends(takeup) for name, sign in _SIDES
+    ])
 
 
 def belts_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
@@ -190,6 +240,9 @@ GROUPS: dict[str, Callable[..., Compound]] = {
     "belts": belts_group,
     "slats": slats_group,
     "tilt": tilt_group,
+    "pillow_blocks": pillow_blocks_group,
+    "bearings": bearings_group,
+    "spacers": spacers_group,
 }
 
 # Fixed colour per group, so a group keeps its colour between runs.
@@ -200,6 +253,9 @@ COLOURS: dict[str, str] = {
     "belts": "#2b2b2b",    # neoprene black
     "slats": "#e8732a",    # printed orange
     "tilt": "#3f9b6d",     # printed green
+    "pillow_blocks": "#6b5fb5",   # printed violet
+    "bearings": "#c9ccd1",        # bright steel
+    "spacers": "#b54f8a",         # printed magenta
 }
 
 # Members shown in a colour of their own, and flagged in the report.
@@ -266,7 +322,8 @@ def show_assembly(*names: str, detail: bool = False, incline: float = p.INCLINE)
 
 def report(incline: float = p.INCLINE) -> list[str]:
     """What is in each group, with placeholders flagged, and the bought
-    hardware for the tilt (spec-tilt §6, §7) -- the project has no BOM."""
+    hardware for the tilt (spec-tilt §6, §7) and the pillow blocks
+    (spec-pillow-blocks §1) -- the project has no BOM."""
     lines = [f"Assembly at incline {incline:g} deg, prop {prop_length(incline):.1f} pin to pin", ""]
     for name, group in assembly(incline=incline).items():
         lines.append(f"{name} ({len(group.children)})")
@@ -280,6 +337,8 @@ def report(incline: float = p.INCLINE) -> list[str]:
             lines.append(f"  {labels[0]} .. {labels[-1]}")
     lines += ["", "Bought hardware, tilt"]
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.TILT_HARDWARE]
+    lines += ["", "Bought hardware, pillow blocks"]
+    lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.PILLOW_BLOCK_HARDWARE]
     return lines
 
 

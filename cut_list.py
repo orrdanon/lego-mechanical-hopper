@@ -15,14 +15,19 @@ def bridge_plate_lines() -> list[str]:
     """Human-readable cut instructions for one bridge plate."""
     x_from_end = p.PLATE_WIDTH / 2 - p.PLATE_BOLT_X
     z_from_end = p.PLATE_LENGTH / 2 - p.PLATE_BOLT_Z
+    pb_z = p.BEARING_Z + p.PB_BOLT_Z
     return [
-        f"Bridge plate  x{p.PLATE_STATIONS}  ({p.PLATE_COUNT_BEARING} bearing + {p.PLATE_COUNT_SUPPORT} support, identical in this phase)",
+        f"Bridge plate  x{p.PLATE_STATIONS}  ({p.PLATE_COUNT_BEARING} bearing + {p.PLATE_COUNT_SUPPORT} support)",
         f"  material : {p.PLATE_THICKNESS:g} mm plywood",
         f"  rectangle: {p.PLATE_LENGTH:g} x {p.PLATE_WIDTH:g} mm  (across the machine x along the run)",
         f"  holes    : 4 x {p.PLATE_BOLT_CLEARANCE_DIA:g} mm (M{p.PLATE_BOLT_M:g} clearance), one per corner,",
         f"             {z_from_end:g} mm in from each short edge, {x_from_end:g} mm in from each long edge",
         f"             (centres {2 * p.PLATE_BOLT_Z:g} mm apart across, {2 * p.PLATE_BOLT_X:g} mm apart along the run;",
         f"             across-spacing matches the frame rails' top-slot centrelines)",
+        "  bearing plates only (tail and head), for the pillow blocks' M4 screws:",
+        f"  holes    : 4 x {p.PLATE_PB_HOLE_DIA:g} mm, centres {2 * pb_z:g} mm apart across, {2 * p.PB_BOLT_X:g} mm apart along the run,",
+        f"             about the plate centre ({p.PLATE_LENGTH / 2 - pb_z:g} mm in from each short edge,",
+        f"             {p.PLATE_WIDTH / 2 - p.PB_BOLT_X:g} mm in from each long edge)",
     ]
 
 

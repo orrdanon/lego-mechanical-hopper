@@ -12,6 +12,7 @@ from params import (
     PLATE_BOLT_CLEARANCE_DIA,
     PLATE_BOLT_X,
     PLATE_BOLT_Z,
+    PLATE_PB_HOLE_DIA,
     PLATE_LENGTH,
     PLATE_STATIONS,
     PLATE_THICKNESS,
@@ -54,7 +55,10 @@ def test_plate_has_four_clearance_holes():
 
 
 def test_both_roles_share_a_body():
-    assert volume_cm3(bridge_plate("bearing")) == approx(volume_cm3(bridge_plate("support")))
+    """The bearing role adds only the pillow blocks' four holes
+    (spec-pillow-blocks §2.5)."""
+    hole = 3.141592653589793 * (PLATE_PB_HOLE_DIA / 2) ** 2 * PLATE_THICKNESS / 1000
+    assert volume_cm3(bridge_plate("bearing")) == approx(volume_cm3(bridge_plate("support")) - 4 * hole, abs=0.01)
     with pytest.raises(ValueError):
         bridge_plate("motor")
 

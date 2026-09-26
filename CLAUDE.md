@@ -7,8 +7,9 @@ each layer reading only downward (phase 4 §2). Phase 1 built the conveyor
 slat, phase 4 the assembly framework with the aluminium frame and bridge
 plates as its first two groups, and the drivetrain spec the tooth profile,
 shaft sets, shafts, belts and the slats placed round the whole loop, and the
-tilt spec the adjustable incline (hinge, cross-member, screw prop). Phase
-2 (skirts, posts) is specified but not yet built beyond its parameters.
+tilt spec the adjustable incline (hinge, cross-member, screw prop), and
+the pillow-block spec the printed bearing housings, bearings and spacers.
+Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
 
 ## Spec authority
 
@@ -25,6 +26,9 @@ tilt spec the adjustable incline (hinge, cross-member, screw prop). Phase
   latest rev of the latest phase wins, and the drivetrain spec is latest.
   Tilt: `spec-tilt.md` (written against `docs/design-baseline-v2.md`). It
   changes nothing on the conveyor; it turns `INCLINE` into a default.
+  Pillow blocks: `spec-pillow-blocks.md` (also written against baseline v2,
+  so before the tilt). It fixes `SHAFT_HEIGHT_ABOVE_PLATE` and adds holes to
+  the end plates; nothing else on the conveyor changes.
 - If a new rev or phase spec file appears, check its own header for what it
   supersedes and diffs against, and treat it the same way.
 
@@ -70,9 +74,18 @@ tilt spec the adjustable incline (hinge, cross-member, screw prop). Phase
   doubled-weight force guard, which its own 150 N limit could not meet,
   passes (no XFAIL is live).
   `docs/design-baseline-v3.md` describes the machine with the tilt.
+- **Pillow blocks: done in CAD, nothing printed.** `parts/pillow_block.py`
+  (with `bearing_pocket()`, the one cutter for the block and the coupon),
+  `bearing.py`, `spacer.py`, `bearing_coupon()` in `coupons.py`, the end
+  plates' four holes, and the `pillow_blocks`, `bearings` and `spacers`
+  groups. Resolutions in `README.md` ("Pillow block resolutions"): names
+  reused, the groups take `incline`, criterion 14 swept at the slats' lug
+  play, and 17 excepting the spacer-to-shaft-set gap that 18 sets.
+  `docs/design-baseline-v3.md` does not yet include them (spec §6 lists
+  what the next baseline must record).
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
-  `SHAFT_HEIGHT_ABOVE_PLATE` (measurement, rev B §8), and the whole
-  of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
+  the pillow-block tests B1-B4 (bearing coupon first; they are independent
+  of the belt), and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
   guide coupon, first shaft set, set-up, creep test, in that order. README
   "Parameters awaiting physical calibration" lists what each step settles.
 
@@ -97,17 +110,22 @@ docs/specs/               the phase specs
   phase4-cad-spec.md        assembly framework, frame, bridge plates (current)
   drivetrain-spec.md        profile, shaft sets, shafts, belt, guide lug, loop placement (rev B, current)
   spec-tilt.md              adjustable incline: hinge, cross-member, clevis, prop, base reference (current)
+  spec-pillow-blocks.md     printed pillow blocks, 608ZZ, spacer tubes, bearing coupon (current)
 reference/                third-party source models, unmodified, never written or imported (CC BY-ND)
 README.md                 setup, usage, and the recorded spec resolutions
 params.py                 single source of truth for every dimension
 geometry.py               pure functions: run direction, shaft axes, at(), loop_at(), radial stations, take-up, plate/frame datums,
-                          and the tilt: hinge_axis(), base_frame(), prop pins, prop_length() and its inverse, prop_force()
+                          and the tilt: hinge_axis(), base_frame(), prop pins, prop_length() and its inverse, prop_force();
+                          slat_lateral_play()
 profile.py                2D only: belt tooth (belt model) and the standard pulley groove; pulley_section() is the one source of teeth
 parts/slat.py             the slat part (plain + cleated) with saddle tabs and guide lug, pulley_envelope()
 parts/shaft_set.py        printed: both pulleys + V-grooved guide wheel of one shaft; shaft_set_with() for the groove control
 parts/shaft.py            bought 8mm shaft with its filed flat (reference solid)
 parts/belt.py             bought belt: belt_segment/belt_wrapped for mesh checks, belt_band for the assembly, belt_loop behind --detail
-parts/coupons.py          printed: ring_coupon and guide_coupon, made by the shaft set's own functions
+parts/coupons.py          printed: ring_coupon and guide_coupon, made by the shaft set's own functions; bearing_coupon, by the block's
+parts/pillow_block.py     printed: 608ZZ press-fit housing and standoff; bearing_pocket() cuts it and the bearing coupon
+parts/bearing.py          bought 608ZZ (reference solid)
+parts/spacer.py           printed: spacer tube, bearing inner ring to shaft set
 parts/bridge_plate.py     plywood bridge plate (reference solid, cut list not STL)
 parts/frame.py            2020 aluminium frame (owned hardware, reference solid), and the tilt's cut cross_member()
 parts/hinge.py            printed: hinge_bracket(side) on the rail, hinge_block(side) on the base; mirror pairs
@@ -115,11 +133,11 @@ parts/prop.py             printed: frame_clevis, prop_body, prop_foot, knob, bas
 parts/hardware.py         bought M8 nuts, washer, rod, pin_bolt (reference solids); hex_prism() cuts every hex pocket
 parts/base_ref.py         the base, OPEN: a placeholder slab for clearance checks, never exported
 assembly.py               GROUPS dict of positioned Compounds; `python assembly.py [group ...] [--detail] [--incline=N] [--report]`
-cut_list.py               writes out/cut_list.txt: the plywood parts, the tilt's cross-member and rod
-utils.py                  bbox/volume/contains/clash helpers used by checks & tests
+cut_list.py               writes out/cut_list.txt: the plywood parts (end plates with the pillow-block holes), the tilt's cross-member and rod
+utils.py                  bbox/volume/contains/clash/distance helpers used by checks & tests
 checks.py                 human-facing runner of every acceptance assertion from the specs
 tests/                    the same assertions as pytest tests
-export.py                 writes out/*.stl: both slats, shaft_set, ring_coupon, guide_coupon, and the tilt's nine printed parts
+export.py                 writes out/*.stl: both slats, shaft_set, three coupons, the tilt's nine printed parts, pillow_block, spacer
 ```
 
 ## Conventions
@@ -159,7 +177,7 @@ export.py                 writes out/*.stl: both slats, shaft_set, ring_coupon, 
 - **Adding a part to the machine** means one `<name>_group(detail, takeup, incline)`
   function in `assembly.py` returning a positioned Compound, one `GROUPS`
   entry and one `COLOURS` entry. Nothing else should need touching.
-- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2) are the contract:
+- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2; spec-pillow-blocks §5) are the contract:
   they're expressed both as `checks.py` (human-facing pass/fail output)
   and as the `tests/` pytest suite. Keep both in sync with whichever spec
   revision is current.
@@ -199,11 +217,13 @@ motorised prop (a bought linear actuator between the same two pins; keep
 angle scale. The take-up mechanism must stay out of the hinge's space
 (rail outer faces t = -60..-20 and outboard).
 
-Per rev B §6, phase 4 §1 and drivetrain-spec §1, §15: pillow blocks and their
-standoffs (unmodelled until the real ones are measured), the tail take-up
+Per rev B §6, phase 4 §1 and drivetrain-spec §1, §15: the tail take-up
 jacking screw, side skirts and posts, motor mount, coupler, hopper, brush
 mounts. Their parameters may exist in `params.py` for later phases to
 reference, but don't build the parts themselves until their phase. The
 skirts no longer guide anything; when specified, their gap can open to 2.0.
 Don't build the creep-test fallback (keyed pin through the belt land)
 unless the physical test fails.
+No shaft collars (spec-pillow-blocks §1.1): the spacers and the blocks'
+lips locate the shaft, and a collar would push a bearing against its press
+fit alone.

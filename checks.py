@@ -12,19 +12,22 @@ from build123d import Align, Box, GeomType, Location, Pos
 import geometry as g
 import params as p
 from assembly import (
-    COLOURS, GROUPS, assembly, belts_group, drivetrain_group, frame_group, plates_group, slats_group,
-    tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
+    COLOURS, GROUPS, assembly, bearings_group, belts_group, drivetrain_group, frame_group, pillow_blocks_group,
+    plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
 )
+from parts.bearing import bearing
 from parts.belt import belt_band, belt_segment, belt_wrapped
 from parts.bridge_plate import bridge_plate
-from parts.coupons import guide_coupon, ring_coupon
+from parts.coupons import bearing_coupon, bearing_coupon_pocket_x, guide_coupon, ring_coupon
 from parts.frame import frame
+from parts.pillow_block import pillow_block
 from parts.prop import frame_clevis
 from parts.shaft import shaft
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import pulley_envelope, slat
+from parts.spacer import spacer
 from profile import groove_half, groove_junctions, pulley_section, tooth_face, tooth_half
-from utils import bbox_size, clash, contains, volume_cm3
+from utils import _overlap_volume, bbox_size, clash, contains, distance_within, min_distance, volume_cm3
 
 
 def _check_parameter_consistency():
@@ -330,13 +333,14 @@ _TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
 
 def _check_whole_loop_clearances():
     """The expensive one. Real slat geometry, every slat, against every
-    drivetrain part, plate and tilt part, across the take-up range and the
-    tilt range (spec-tilt §8.1, which is also its T6)."""
+    drivetrain part, plate, tilt part, pillow block and spacer, across the
+    take-up range and the tilt range (spec-tilt §8.1, which is also its T6;
+    spec-pillow-blocks §4)."""
     for incline in p.TILT_CHECK_ANGLES:
         for takeup in _TAKEUPS:
             fixed = [
                 part
-                for group in (drivetrain_group, plates_group, tilt_group)
+                for group in (drivetrain_group, plates_group, tilt_group, pillow_blocks_group, spacers_group)
                 for part in group(takeup=takeup, incline=incline).children
             ]
             for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
@@ -409,7 +413,8 @@ def _check_frame_clears_base():
         base = _by_label(tilt_base_parts(incline))["base_ref"]
         for takeup in _TAKEUPS:
             moving = tilt_frame_parts(incline)
-            for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group):
+            for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group,
+                          pillow_blocks_group, bearings_group, spacers_group):
                 moving += list(group(takeup=takeup, incline=incline).children)
             for part in moving:
                 gap = part.distance_to(base)
@@ -532,6 +537,145 @@ def _check_tilt_parts():
         assert on_frame["frame clevis"].distance_to(on_frame["cross-member"]) < 0.01
 
 
+# --- Pillow blocks, bearings, spacers -- spec-pillow-blocks §5 ----------------
+
+
+def _check_pillow_block():
+    """§5.1, 1-8."""
+    b = pillow_block()
+    assert b.is_valid and len(b.solids()) == 1
+    assert all(abs(a - e) < 0.01 for a, e in zip(bbox_size(b), (44.0, 63.0, 21.0)))
+    assert 16.15 <= volume_cm3(b) <= 17.15                         # 16.65 built, +/-3 %; spec range 15..18
+    h = p.SHAFT_HEIGHT_ABOVE_PLATE
+    assert not contains(b, (0, h, 0))                               # pocket centre
+    rib = 11.05
+    assert contains(b, (0, h + rib, 0))                             # on the +y rib
+    between = math.radians(360 / p.PB_RIB_COUNT / 2)
+    assert not contains(b, (rib * math.sin(between), h + rib * math.cos(between), 0))   # between ribs
+    assert contains(b, (0, h + 10.3, 4.25)) and not contains(b, (0, h + 7.0, 4.25))      # lip ledge, lip hole
+    assert not contains(b, (0, h, -3.4))                            # open on the inboard face
+    assert not contains(b, (p.PB_BOLT_X, 3.0, p.PB_BOLT_Z)) and contains(b, (p.PB_BOLT_X, 6.8, p.PB_BOLT_Z))
+
+
+def _bearing_clash(rib_tip_dia: float) -> float:
+    return _overlap_volume(pillow_block(rib_tip_dia), Pos(0, p.SHAFT_HEIGHT_ABOVE_PLATE, 0) * bearing())
+
+
+def _check_bearing_press_fit():
+    """§5.2, 9-11: the ribs and nothing else grip the bearing."""
+    assert 3.24 <= _bearing_clash(p.PB_RIB_TIP_DIA) <= 3.44         # 3.34 built; spec range 1..10
+    clear = pillow_block(22.2)
+    seated = Pos(0, p.SHAFT_HEIGHT_ABOVE_PLATE, 0) * bearing()
+    assert _overlap_volume(clear, seated) == 0.0
+    assert clear.distance_to(seated) <= 0.01                        # on the lip
+    volumes = [_bearing_clash(d) for d in (21.6, 21.8, 22.0)]
+    assert volumes[0] > volumes[1] > volumes[2]
+
+
+def _check_spacer_and_bearing():
+    """§5.3, 12-13."""
+    s = spacer()
+    assert s.is_valid and all(abs(a - e) < 0.01 for a, e in zip(bbox_size(s), (11.0, 11.0, 16.8)))
+    assert 0.64 <= volume_cm3(s) <= 0.70
+    b = bearing()
+    assert b.is_valid and all(abs(a - e) < 0.01 for a, e in zip(bbox_size(b), (22.0, 22.0, 7.0)))
+    assert 2.25 <= volume_cm3(b) <= 2.32
+
+
+def _check_bearing_coupon():
+    """§3.4: each pocket is the block's pocket at its own rib-tip diameter."""
+    c = bearing_coupon()
+    assert c.is_valid and len(c.solids()) == 1
+    assert all(abs(a - e) < 0.01 for a, e in zip(bbox_size(c), (p.BC_LENGTH, p.BC_WIDTH, p.BC_THICKNESS)))
+    assert abs(c.bounding_box().min.Z) < 1e-6
+    y = -p.BC_WIDTH / 2 + p.BC_POCKET_EDGE
+    for i, dia in enumerate(p.BC_RIB_TIP_DIAS):
+        seated = Pos(bearing_coupon_pocket_x(i), y, p.BEARING_WIDTH / 2 + p.PB_LIP_THICKNESS) * bearing()
+        assert abs(_overlap_volume(c, seated) - _bearing_clash(dia)) < 1e-3
+
+
+def _sweep_min(parts_of, limit: float, shifts=(0.0,)) -> float:
+    """Least distance from any real slat, shifted across the machine by
+    each of `shifts`, to any member of `parts_of(takeup)`, over the three
+    take-ups; distances from `limit` up are only known to be >= limit.
+    The parts move by -shift instead of the slats by +shift: the same
+    relative motion, and moving a real slat copies it."""
+    least = math.inf
+    for takeup in _TAKEUPS:
+        slats = slats_group(detail=True, takeup=takeup).children
+        for shift in shifts:
+            parts = [part.moved(Location((0, 0, -shift))) for part in parts_of(takeup=takeup).children]
+            least = min(least, *(min_distance(s, parts, limit) for s in slats))
+    return least
+
+
+def _check_slats_clear_pillow_blocks():
+    """§5.4, 14-16. The slats slide across the machine by their lug play,
+    which is what brings the slat ends toward the towers (5.79)."""
+    play = g.slat_lateral_play()
+    blocks = _sweep_min(pillow_blocks_group, 10.0, shifts=(play, -play))
+    assert blocks >= p.PB_SLAT_CLEAR_MIN and abs(blocks - 5.79) < 0.01, f"{blocks:.3f}"
+    assert p.SHAFT_HEIGHT_ABOVE_PLATE - g.cleat_tip_radius() - p.PB_FOOT_HEIGHT > p.PB_SLAT_CLEAR_MIN   # 6.05
+    spacers = _sweep_min(spacers_group, 15.0)
+    assert spacers >= p.PB_SLAT_CLEAR_MIN and abs(spacers - (g.tab_tip_radius() - p.SPACER_OD / 2)) < 0.01, f"{spacers:.3f}"
+
+
+def _check_bearing_parts_clear_drivetrain():
+    """§5.4, 17-18. The spacer faces the shaft set's end across half the
+    end play, so that pair is held to 18's gap instead of 17's 1.0."""
+    for takeup in _TAKEUPS:
+        others = list(belts_group(takeup=takeup).children)
+        others += [c for c in drivetrain_group(takeup=takeup).children if c.label.endswith("shaft set")]
+        for group in (pillow_blocks_group, bearings_group, spacers_group):
+            for part in group(takeup=takeup).children:
+                for other in others:
+                    assert not clash(part, other), f"{part.label} / {other.label}"
+                    gap = distance_within(part, other, 1.0)
+                    if part.label.split()[1] == "spacer" and other.label == f"{part.label.split()[0]} shaft set":
+                        assert abs(gap - p.SHAFT_END_PLAY / 2) < 0.01, f"{part.label} {gap:.3f}"
+                    else:
+                        assert gap >= 1.0, f"{part.label} / {other.label} {gap:.3f}"
+
+
+def _check_blocks_on_plates():
+    """§5.4, 19-22."""
+    for takeup in _TAKEUPS:
+        plates = plates_group(takeup=takeup).children
+        shafts = {c.label: c for c in drivetrain_group(takeup=takeup).children}
+        for block in pillow_blocks_group(takeup=takeup).children:
+            end, _, side = block.label.split()
+            plate = plates[0] if end == "tail" else plates[-1]
+            assert not clash(block, plate) and block.distance_to(plate) < 1e-6              # 19
+            local = block.moved(plate.location.inverse()).bounding_box()
+            assert abs(local.min.Y) < 1e-6
+            assert -p.PLATE_WIDTH / 2 <= local.min.X and local.max.X <= p.PLATE_WIDTH / 2
+            assert -p.PLATE_LENGTH / 2 <= local.min.Z and local.max.Z <= p.PLATE_LENGTH / 2
+            for x in (-p.PB_BOLT_X, p.PB_BOLT_X):                                           # 20
+                hole = (block.location * Location((x, -p.PLATE_THICKNESS / 2, p.PB_BOLT_Z))).position
+                assert not contains(plate, (hole.X, hole.Y, hole.Z))
+            sign = 1 if side == "+z" else -1                                                # 21
+            axis = (block.location * Location((0, p.SHAFT_HEIGHT_ABOVE_PLATE, 0))).position
+            on_shaft = shafts[f"{end} shaft"].location.position
+            assert math.hypot(axis.X - on_shaft.X, axis.Y - on_shaft.Y) < 0.01
+            assert abs(axis.Z - sign * p.BEARING_Z) < 0.01
+            box = block.bounding_box()                                                      # 22
+            assert abs((box.max.Z if sign > 0 else -box.min.Z) - 55.0) < 0.01
+            tower = g.at(g.tail_shaft_t(takeup) if end == "tail" else p.CENTRE_DIST, 13.0).position
+            for dz, inside in ((0.05, True), (-0.05, False)):
+                probe = (tower.X, tower.Y, sign * (46.5 + dz))
+                assert contains(block, probe) == inside
+
+
+def _check_end_plate_holes():
+    bearing_plate, support_plate = bridge_plate("bearing"), bridge_plate("support")
+    z = p.BEARING_Z + p.PB_BOLT_Z
+    assert abs(z - 40.25) < 1e-9
+    for x in (-p.PB_BOLT_X, p.PB_BOLT_X):
+        for sz in (-z, z):
+            assert not contains(bearing_plate, (x, -p.PLATE_THICKNESS / 2, sz))
+            assert contains(support_plate, (x, -p.PLATE_THICKNESS / 2, sz))
+
+
 def tilt_report() -> list[str]:
     """The setting-up table (spec-tilt §8.3) and the informational numbers
     of §5.4 and T12. This is how the angle gets set by hand."""
@@ -594,6 +738,14 @@ _CHECKS = [
     ("tilt T11: prop force", _check_prop_force),
     ("tilt T11: prop force at doubled weight", _check_prop_force_doubled),
     ("tilt: parts", _check_tilt_parts),
+    ("pillow block", _check_pillow_block),
+    ("pillow block: bearing press fit and controls", _check_bearing_press_fit),
+    ("spacer and bearing", _check_spacer_and_bearing),
+    ("bearing coupon", _check_bearing_coupon),
+    ("end plates: pillow block holes", _check_end_plate_holes),
+    ("pillow blocks and spacers clear every slat", _check_slats_clear_pillow_blocks),
+    ("pillow blocks, bearings, spacers clear belts and shaft sets", _check_bearing_parts_clear_drivetrain),
+    ("pillow blocks on their plates, on their shafts", _check_blocks_on_plates),
 ]
 
 

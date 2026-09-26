@@ -59,3 +59,30 @@ def bbox_size(part: Part) -> tuple[float, float, float]:
 def clash(a: Shape, b: Shape, tol: float = 1e-6) -> bool:
     """True if the two solids overlap by more than `tol` mm^3."""
     return _overlap_volume(a, b) > tol
+
+
+def _box_gap(a: BoundBox, b: BoundBox) -> float:
+    """Euclidean distance between two bounding boxes, 0 if they overlap."""
+    return sum(
+        max(lo_b - hi_a, lo_a - hi_b, 0.0) ** 2
+        for lo_a, hi_a, lo_b, hi_b in zip(a.min, a.max, b.min, b.max)
+    ) ** 0.5
+
+
+def distance_within(a: Shape, b: Shape, limit: float) -> float:
+    """The distance between `a` and `b` if it could be under `limit`;
+    otherwise the gap between their bounding boxes, a lower bound that is
+    already >= limit."""
+    return min_distance(a, [b], limit)
+
+
+def min_distance(a: Shape, others, limit: float) -> float:
+    """The least distance_within(a, b, limit) over `others`, taking `a`'s
+    bounding box once -- on a real slat that box costs more than most of
+    the distances, which is what keeps a whole-loop sweep cheap."""
+    box = a.bounding_box()
+    least = float("inf")
+    for b in others:
+        gap = _box_gap(box, b.bounding_box())
+        least = min(least, gap if gap >= limit else a.distance_to(b))
+    return least
