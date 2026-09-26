@@ -9,7 +9,7 @@ from pytest import approx
 
 import geometry as g
 import params as p
-from assembly import drivetrain_group, plates_group, slats_group
+from assembly import drivetrain_group, plates_group, slats_group, tilt_group
 from parts.belt import belt_band, belt_loop, belt_segment, belt_wrapped
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import slat
@@ -154,16 +154,21 @@ def test_guide_allows_its_lateral_play_and_no_more(sign):
 # --- §12.6 Whole-loop clearances ------------------------------------------------------------
 
 
+@pytest.mark.parametrize("incline", p.TILT_CHECK_ANGLES)
 @pytest.mark.parametrize("takeup", [p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX])
-def test_every_slat_clears_the_drivetrain_and_plates(takeup):
+def test_every_slat_clears_the_drivetrain_and_plates(takeup, incline):
     """The expensive test. Real slat geometry; the tail plate, shaft and shaft
     set slide together and the slats follow the loop."""
-    fixed = list(drivetrain_group(takeup=takeup).children) + list(plates_group(takeup=takeup).children)
-    slats = slats_group(detail=True, takeup=takeup).children
+    fixed = [
+        part
+        for group in (drivetrain_group, plates_group, tilt_group)   # the tilt parts too: spec-tilt §8.1, T6
+        for part in group(takeup=takeup, incline=incline).children
+    ]
+    slats = slats_group(detail=True, takeup=takeup, incline=incline).children
     assert len(slats) == p.SLAT_COUNT
     for s in slats:
         for part in fixed:
-            assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}"
+            assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}, incline {incline}"
 
 
 @pytest.mark.parametrize("phase", [0.0, p.SLAT_PITCH / 2])

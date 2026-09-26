@@ -5,8 +5,10 @@ parts that assemble. Phase 1 built the conveyor slat (plain and cleated);
 phase 4 added the assembly framework with the aluminium frame and the
 plywood bridge plates as its first two groups; the drivetrain spec added
 the tooth profile, the printed shaft sets, shafts, belts and the slats
-running round both ends. See the `phase*-cad-spec*.md` files and
-`drivetrain-spec.md` in `docs/specs/`: each phase depends on the earlier
+running round both ends; the tilt spec made the incline adjustable by hand
+over 25..55 degrees, with a hinge, a cross-member and a screw prop. See the
+`phase*-cad-spec*.md` files, `drivetrain-spec.md` and `spec-tilt.md` in
+`docs/specs/`: each phase depends on the earlier
 ones, and each rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided, written
@@ -54,6 +56,8 @@ python3 assembly.py plates --detail
 python3 assembly.py frame plates drivetrain belts slats   # the machine
 python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
 python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
+python3 assembly.py --incline=55    # the whole machine tilted; INCLINE (40) if not given
+python3 assembly.py --report        # no viewer: each group's members, and the tilt's bought hardware
 ```
 
 A name is a group, or `group:pattern` for just the members whose label
@@ -68,15 +72,24 @@ group. `slats` draws plain bounding boxes without it and real slats with
 it; `belts` draws the smooth backing band without it and both 276-tooth
 loops with it. The rest ignore it.
 
+`--incline` tilts the conveyor about the machine origin (the tail shaft
+axis); the base is what moves in machine coordinates. The `tilt` group's
+`base_ref` slab is a **placeholder** for the undecided base: it is shown in
+its own muted colour (`assembly.PLACEHOLDERS`), flagged in `--report`, and
+never exported.
+
 ## Running checks
 
 ```bash
 python3 checks.py
 ```
 
-Prints one line per acceptance check from rev B §5, phase 4 §8 and
-drivetrain-spec §4.4 and §12, and exits non-zero if any fail. It takes
-about half a minute, nearly all of it the whole-loop clearance sweep. This is the same set of assertions as the
+Prints one line per acceptance check from rev B §5, phase 4 §8,
+drivetrain-spec §4.4 and §12 and spec-tilt §8.2, and exits non-zero if any
+fail. It takes about two minutes, most of it the whole-loop clearance sweep,
+which runs at three take-ups and three inclines. It ends with the
+**setting-up table** (spec-tilt §8.3): prop length and exposed rod against
+incline, which is how the angle gets set by hand -- see "Tilt" below. This is the same set of assertions as the
 pytest suite, just human-facing. A check listed in `_EXPECTED_FAILURES`
 prints `XFAIL` with its recorded reason instead of failing the run, and
 prints `XPASS` and fails the run if it unexpectedly passes -- that is the
@@ -101,9 +114,16 @@ its `params.PRINT_ROT_*`. `out/` is gitignored. **Print in the order of
 "Physical calibration" below** -- the coupons gate the shaft set, and no
 slats should be batch-printed before the saddle and guide fits pass.
 
+The tilt mechanism adds `hinge_bracket_R/L`, `hinge_block_R/L`,
+`frame_clevis`, `prop_body`, `prop_foot`, `knob` and `base_pin_block`
+(spec-tilt §8.4). R is the machine's +z side, the right-hand one looking
+from tail to head. `prop_body` has a closed nut pocket: pause the print at
+its ceiling and drop the M8 nut in.
+
 The frame and shafts are owned or bought hardware, the belt is bought, and
 the bridge plates are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
-with the plate rectangle and hole positions instead.
+with the plate rectangle and hole positions, the tilt's cross-member (2020,
+234) and its prop rod (M8, 136) instead.
 
 ## The assembly framework (phase 4)
 
@@ -363,13 +383,127 @@ land". Between the root fillets and ±pitch/2 the land and the closing line
 coincide and enclose no area, so the face spans fillet to fillet;
 `tooth_half()` still runs the full half pitch.
 
+## Tilt
+
+`docs/specs/spec-tilt.md`. The incline is an argument, `incline=INCLINE`,
+threaded through `geometry.py`, `parts/frame.py` and every assembly group
+the way `takeup` was. The machine frame does not move: the conveyor rotates
+about the tail shaft axis, and `geometry.base_frame(incline)` is where
+everything standing on the base is placed. At 40 degrees every part lands
+exactly where it did.
+
+To set an angle on the real machine: slacken the lock nut, turn the knob
+until the bare rod between the knob's jam nut and the lock nut measures the
+"exposed rod" figure from the table `checks.py` prints, then run the lock nut
+back up against the prop body. About 45 turns cover the range.
+
+The base is **open**; so are the fasteners of the hinge blocks and the pin
+block. `TILT_WEIGHT_N` is an estimate until the frame is weighed. The
+take-up mechanism, when designed, must stay off the rails' outer faces from
+t = -60 to -20 and out of the space outboard of them (spec-tilt §3.2).
+
+## Tilt resolutions
+
+Places where spec-tilt could not be followed to the letter, resolved per
+the convention in `CLAUDE.md`. The first three are real conflicts in the
+spec and worth a look before anything is printed.
+
+### Frame clevis
+
+Pin A is 10.0 below the cross-member (`PROP_PIN_A_OFFSET = -87.0`), and
+three things the spec puts there do not fit in 10.0:
+
+- the prop's eye is 9.0 in radius, so a clevis base of any useful thickness
+  between the cheeks would be hit by it;
+- pin A's hex head (15.0 across corners) and washer (16.0) stand 7.5 and 8.0
+  above the pin on the cheeks' outer faces, leaving 2.0 for a flange there;
+- the fixing bolts at z = +/-15.0 would put their heads inside that same
+  hardware: the cheeks end at +/-12.3 and the M8 x 45 runs out to -32.7.
+
+Pin A's position sets the whole length table, so it stays. Instead the
+flange is open tailward of `CLEVIS_WINDOW_X` (10.0), between the cheeks and
+outboard of them to `CLEVIS_WINDOW_Z` (35.0); the cheeks hang from a wall on
+the head side, where the prop never goes (it always leaves pin A tailward,
+13..23 degrees below the run); and the two M5 move out to
+**`CLEVIS_BOLT_Z` = 42.0**, still in the cross-member's bottom slot.
+`params.py` asserts that the pin's bolt stays inside its window and the
+fixing bolts outside it. "Material below pin A >= 7.0" is read as wall below
+the pin hole, so the cheek nose is 11.1 in radius; being more than 10.0, it
+is a half-disc so nothing stands proud of the contact face.
+
+The prop load is compression, carried by the cheeks' top faces straight into
+the cross-member; the M5 only locate the part.
+
+### Prop foot
+
+The foot pocket (16.0) is wider than the foot's eye (12.0), so the foot has
+to widen between the eye and the pocket -- inside the pin block's cheeks, if
+they were round about pin B like the frame clevis's. The prop only ever
+pushes pin B down, so the pin block's cheeks are solid below the pin and
+have just a `PIN_BLOCK_CHEEK_R` = 7.0 nose above it, and the foot widens to
+`FOOT_DIA` = 24.0 at the pocket floor, 8.0 from pin B; `params.py` asserts
+the order. The spec's round pocket also has no way in for the two nuts, so
+the foot has a window `FOOT_WINDOW_W` = 14.0 wide in its -y side, which
+faces up and tailward, toward the hand. It doubles as spanner access for
+jamming them.
+
+### Prop force at doubled weight
+
+Spec-tilt §5.4 asserts the prop force under `PROP_FORCE_MAX` = 150 N and
+that "a doubled weight must still pass", but its own table has 98 N at 25
+degrees, which doubles to 196 N. Doubled, the limit is only met above about
+33 degrees. Both numbers are the spec's, so neither was changed: the nominal
+assertion passes, and the doubled one is an `XFAIL` in `checks.py` and a
+`strict=True` xfail in `tests/test_tilt.py`. It wants a decision -- raise
+`PROP_FORCE_MAX` to 200 or more if the printed pivots are good for it, or
+raise `TILT_MIN`, or move pin B -- and then the entry comes out.
+
+### Negative controls
+
+- **T7, pin B at 300.** Confirmed, as the spec asks, but not by the mechanism
+  it expects. The prop is then 111.3 long at 25 degrees and stands square to
+  the frame at z = 0, where there is no rail for the body to hit; what hits
+  is the 136 rod, which comes up through pin A into the cross-member
+  (488 mm^3). That is a real frame-underside clash, so the control stands.
+- **T5, cross-member at 190.** The overlap with the plate at 177 is 19.5,
+  not the 10 the spec quotes: the plates are 45 along the run.
+
+### Smaller readings
+
+- **T8** is checked as the whole body against the whole clevis, and the foot
+  against the whole pin block: no overlap, and nothing nearer than the
+  `CLEVIS_SIDE_CLEAR` = 0.3 the eyes run at. That covers the base, the
+  cheeks and the head wall at once. The body clears the cheek noses by 0.9.
+- **T7's plane distance** is measured on the prop body with everything
+  inside the clevis's extent along the run cut away: 3.4 / 4.4 / 4.9 at
+  25 / 40 / 55 degrees.
+- **Hinge bracket.** "Its lowest point is 8.0 above the base" is the boss.
+  The plate's tail bottom corner is the rail's own corner and rides with it,
+  about 6 above the base.
+- **Length budget.** The spec wants it asserted in `params.py`, which
+  imports only `math`, and `prop_length` in `geometry.py`. So
+  `params.prop_length_at()` is a closed form of the same distance and
+  `tests/test_tilt.py` holds the two together.
+- **T1.** Two existing tests did change, because the spec changes what they
+  list: the export test's file names, and the whole-loop sweep, now 3 x 3.
+  The project has no BOM, so §7's hardware is `params.TILT_HARDWARE`,
+  printed by `python3 assembly.py --report`.
+- The prop body's nut pocket leaves 1.3 of wall at the hex's corners
+  (`PROP_BODY_DIA` 18.0 against 15.4 across corners). It is the spec's
+  figure and is in compression; thicken the body if it splits.
+
 ## Missing parameters
 
 None. Every dimension needed so far is present in `params.py`. The
 drivetrain added a few the spec used but did not name:
 `PULLEY_BORE_CHAMFER`, `PULLEY_GRUB_CLEARANCE_DIA`,
 `PULLEY_INSERT_MIN_WALL`, `SHAFTSET_CONE_ANGLE`, `RING_COUPON_THICKNESS`
-and `PULLEY_GROOVE_TEETH`.
+and `PULLEY_GROOVE_TEETH`. The tilt added the M8 and M5 catalogue sizes and
+the dimensions spec-tilt gave only in its tables' value columns (the hinge
+block's flange, both clevises' cheeks, the foot's pocket and wall, the base
+reference slab, the check criteria), plus those its resolutions needed:
+`CLEVIS_WINDOW_X/Z`, `CLEVIS_HEAD_X`, `CLEVIS_BOLT_Z`, `PROP_EYE_LEN`,
+`FOOT_DIA`, `FOOT_WINDOW_W`, `PIN_BLOCK_CHEEK_R` and the knob's scallops.
 
 ## Provisional parameters
 
