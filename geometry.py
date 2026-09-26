@@ -325,12 +325,14 @@ def prop_exposed_rod(incline: float = params.INCLINE) -> float:
     return prop_length(incline) - params.PROP_BODY_LEN - params.FOOT_LEN - params.FOOT_STACK + params.STACK_CLEARANCE
 
 
-def prop_force(incline: float = params.INCLINE, weight: float = params.TILT_WEIGHT_N) -> float:
+def prop_force(incline: float = params.INCLINE, weight: float = params.TILT_TOTAL_WEIGHT_N) -> float:
     """Compression in the prop, N: the weight's moment about the hinge axis
     over the perpendicular distance from the hinge axis to the prop line.
-    Informational -- TILT_WEIGHT_N is an estimate (spec-tilt §5.4)."""
+    The weight acts at the combined CG of the frame estimate and the drive
+    (spec-drive §7), so doubling `weight` doubles both. Informational --
+    TILT_WEIGHT_N is an estimate (spec-tilt §5.4)."""
     hinge = hinge_axis(incline)
-    centroid = at(params.TILT_CG_T, params.TILT_CG_OFFSET, incline=incline).position
+    centroid = at(params.TILT_TOTAL_CG_T, params.TILT_TOTAL_CG_OFFSET, incline=incline).position
     pin_b = prop_pin_b(incline)
     axis = (prop_pin_a(incline) - pin_b).normalized()
     arm = abs((pin_b - hinge).cross(axis).Z)

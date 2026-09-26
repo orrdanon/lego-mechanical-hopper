@@ -12,14 +12,18 @@ from build123d import Align, Box, GeomType, Location, Pos
 import geometry as g
 import params as p
 from assembly import (
-    COLOURS, GROUPS, assembly, bearings_group, belts_group, drivetrain_group, frame_group, pillow_blocks_group,
-    plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
+    COLOURS, GROUPS, assembly, bearings_group, belts_group, drive_group, drivetrain_group, frame_group,
+    pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group,
+    tilt_prop_parts,
 )
 from parts.bearing import bearing
 from parts.belt import belt_band, belt_segment, belt_wrapped
 from parts.bridge_plate import bridge_plate
+from parts.coupler import coupler
 from parts.coupons import bearing_coupon, bearing_coupon_pocket_x, guide_coupon, ring_coupon
 from parts.frame import frame
+from parts.motor import motor
+from parts.motor_bracket import motor_bracket, motor_hole_centres, slot_z
 from parts.pillow_block import pillow_block
 from parts.prop import frame_clevis
 from parts.shaft import shaft
@@ -333,16 +337,17 @@ _TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
 
 def _check_whole_loop_clearances():
     """The expensive one. Real slat geometry, every slat, against every
-    drivetrain part, plate, tilt part, pillow block and spacer, across the
-    take-up range and the tilt range (spec-tilt §8.1, which is also its T6;
-    spec-pillow-blocks §4)."""
+    drivetrain part, plate, tilt part, pillow block and spacer, and the
+    drive on either side, across the take-up range and the tilt range
+    (spec-tilt §8.1, which is also its T6; spec-pillow-blocks §4;
+    spec-drive §8.12, §8.15)."""
     for incline in p.TILT_CHECK_ANGLES:
         for takeup in _TAKEUPS:
             fixed = [
                 part
                 for group in (drivetrain_group, plates_group, tilt_group, pillow_blocks_group, spacers_group)
                 for part in group(takeup=takeup, incline=incline).children
-            ]
+            ] + _drive_parts(takeup, incline)
             for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
                 for part in fixed:
                     assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}, incline {incline}"
@@ -416,6 +421,7 @@ def _check_frame_clears_base():
             for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group,
                           pillow_blocks_group, bearings_group, spacers_group):
                 moving += list(group(takeup=takeup, incline=incline).children)
+            moving += _drive_parts(takeup, incline)
             for part in moving:
                 gap = part.distance_to(base)
                 assert gap >= p.BASE_CLEARANCE_MIN, f"{part.label} is {gap:.2f} from the base at incline {incline}, takeup {takeup}"
@@ -515,17 +521,21 @@ _TILT_GRID = [p.TILT_MIN + 0.5 * i for i in range(int((p.TILT_MAX - p.TILT_MIN) 
 
 
 def _check_prop_force():
+    """With the drive's weight added at the head shaft (spec-drive §7); the
+    frame alone gave spec-tilt's 98 / 58 / 37."""
     for incline in _TILT_GRID:
         assert 0 < g.prop_force(incline) < p.PROP_FORCE_MAX
-    for incline, force in zip(p.TILT_CHECK_ANGLES, (98.0, 58.0, 37.0)):
+    for incline, force in zip(p.TILT_CHECK_ANGLES, (112.8, 67.0, 41.8)):
         assert abs(g.prop_force(incline) - force) < 1.0
 
 
 def _check_prop_force_doubled():
-    """The guard on the weight estimate: PROP_FORCE_MAX was set so this
-    passes. See README.md "Prop force at doubled weight"."""
-    worst = max(g.prop_force(incline, 2 * p.TILT_WEIGHT_N) for incline in _TILT_GRID)
-    assert worst < p.PROP_FORCE_MAX, f"{worst:.0f} N"
+    """The guard on the weight estimate, frame and drive together
+    (spec-drive §8.14): PROP_FORCE_MAX was set so this passes. See README.md
+    "Prop force at doubled weight"."""
+    worst = max(g.prop_force(incline, 2 * p.TILT_TOTAL_WEIGHT_N) for incline in _TILT_GRID)
+    assert worst <= p.PROP_FORCE_MAX, f"{worst:.0f} N"
+    assert abs(worst - 225.7) < 0.5, f"{worst:.1f} N"
 
 
 def _check_tilt_parts():
@@ -676,6 +686,144 @@ def _check_end_plate_holes():
             assert contains(support_plate, (x, -p.PLATE_THICKNESS / 2, sz))
 
 
+# --- Drive: motor, coupler, motor bracket -- spec-drive §8 ---------------------
+
+
+_DRIVE_SIDES = (1, -1)
+
+
+def _drive_parts(takeup: float = 0.0, incline: float = p.INCLINE) -> list:
+    """The drive on both sides, and the head shaft turned for -1: every part
+    that DRIVE_SIDE moves, labelled with its side (§8.15)."""
+    parts = []
+    for side in _DRIVE_SIDES:
+        tag = "+z" if side > 0 else "-z"
+        for part in drive_group(takeup=takeup, incline=incline, drive_side=side).children:
+            parts.append(part.moved(Location()))
+            parts[-1].label = f"{part.label} {tag}"
+    head = _by_label(drivetrain_group(takeup=takeup, incline=incline, drive_side=-1).children)["head shaft"]
+    head.label = "head shaft -z"
+    return parts + [head]
+
+
+def _check_drive_parameters():
+    """§8, 1-6, and the §2 sizing."""
+    assert p.HEAD_SHAFT_DRIVE_EXT >= p.PILLOW_BLOCK_HALF_W + p.COUPLER_BLOCK_GAP + p.COUPLER_ENGAGE        # 1
+    assert p.COUPLER_ENGAGE <= p.HEAD_SHAFT_ENGAGE <= p.COUPLER_ENGAGE_MAX                                 # 2
+    motor_engage = p.COUPLER_Z + p.COUPLER_LEN - (p.MOTOR_FACE_Z - p.MOTOR_SHAFT_LEN)
+    assert p.COUPLER_ENGAGE <= motor_engage <= p.COUPLER_ENGAGE_MAX
+    assert p.COUPLER_TIP_GAP >= p.COUPLER_TIP_GAP_MIN                                                      # 3
+    assert p.MOTOR_SCREW_LEN - p.FACE_PLATE_T <= p.MOTOR_SCREW_MAX_ENGAGE                                  # 4
+    assert p.DRIVE_TORQUE_AVAIL / p.DRIVE_TORQUE_EST >= p.DRIVE_TORQUE_MARGIN_MIN                          # 5
+    assert abs(p.DRIVE_TORQUE_AVAIL / p.DRIVE_TORQUE_EST - 1.66) < 0.01
+    bottom = p.SHAFT_HEIGHT_ABOVE_PLATE - p.MOTOR_SQUARE / 2                                                # 6
+    assert bottom >= p.BRACKET_FOOT_T + p.M5_HEAD_H + p.MOTOR_HEAD_CLEAR
+    assert abs(p.DRIVE_TORQUE_EST - 0.153) < 1e-3 and abs(p.DRIVE_SKIP_PULL_N - 13.3) < 0.05
+    assert p.DRIVE_STEP_RATE == 1600.0
+    assert p.COUPLER_RATED_TORQUE > p.MOTOR_HOLD_TORQUE
+    # the stack, with the printed block (README "Drive resolutions")
+    assert (p.HEAD_SHAFT_LEN, p.HEAD_SHAFT_DRIVE_EXT, p.COUPLER_Z, p.MOTOR_FACE_Z) == (140.0, 17.5, 57.0, 95.5)
+    assert abs(p.HEAD_SHAFT_ENGAGE - 10.5) < 1e-9 and abs(p.COUPLER_TIP_GAP - 4.5) < 1e-9
+    assert p.MOTOR_FACE_Z + p.MOTOR_BODY_LEN <= p.FRAME_WIDTH / 2                  # motor back inside the frame's face
+
+
+def _placed_in_bracket(part):
+    """A motor on the bracket's face plate, in the bracket's local frame."""
+    return part.moved(Location((0, p.SHAFT_HEIGHT_ABOVE_PLATE, p.FACE_PLATE_T), (0, 180, 0)))
+
+
+def _check_motor_bracket():
+    """§8, 7-10."""
+    b = motor_bracket()
+    assert b.is_valid and len(b.solids()) == 1                                                             # 7
+    assert all(abs(a - e) < 0.5 for a, e in zip(bbox_size(b), (45.0, 72.0, 66.0))), bbox_size(b)   # 57 in the spec, README
+    assert 25.0 <= volume_cm3(b) <= 45.0
+    assert abs(volume_cm3(b) - 30.47) < 0.03 * 30.47                                                       # pinned, first build
+    h = p.SHAFT_HEIGHT_ABOVE_PLATE
+    mid = p.FACE_PLATE_T / 2
+    assert not contains(b, (0, h, mid))                                                                    # 8
+    assert all(not contains(b, (x, y, mid)) for x, y in motor_hole_centres())
+    assert all(not contains(b, (x, p.BRACKET_FOOT_T / 2, slot_z())) for x in (-p.PLATE_BOLT_X, p.PLATE_BOLT_X))
+    assert contains(b, (0, 30, 2.5))                                                                        # 9
+    seated = _placed_in_bracket(motor())
+    assert not clash(b, seated) and b.distance_to(seated) < 1e-6          # on the face plate, boss free in the bore
+    tight = motor_bracket(pilot_bore=21.9)                                                                  # 10
+    assert _overlap_volume(tight, seated) > 1.0
+
+
+def _check_drive_parts():
+    """The reference solids, and the shafts sitting in the coupler's bores."""
+    m, c = motor(), coupler()
+    assert m.is_valid and all(abs(a - e) < 0.01 for a, e in zip(bbox_size(m), (42.3, 42.3, 63.5)))
+    assert c.is_valid and all(abs(a - e) < 0.01 for a, e in zip(bbox_size(c), (20.0, 20.0, 25.0)))
+    head = shaft(p.HEAD_SHAFT_DRIVE_EXT)
+    assert head.is_valid and all(abs(a - e) < 0.01 for a, e in zip(bbox_size(head), (8.0, 8.0, 140.0)))
+    assert abs(head.bounding_box().min.Z + p.SHAFT_LENGTH / 2) < 1e-6        # non-drive end unchanged
+    assert not contains(head, (3.8, 0, 0)) and contains(head, (3.8, 0, 30.0))  # flat still centred on z = 0
+    for side in _DRIVE_SIDES:
+        drive = _by_label(drive_group(drive_side=side).children)
+        train = _by_label(drivetrain_group(drive_side=side).children)
+        shaft_end = train["head shaft"].bounding_box().max.Z if side > 0 else -train["head shaft"].bounding_box().min.Z
+        assert abs(shaft_end - (p.BEARING_Z + p.HEAD_SHAFT_DRIVE_EXT)) < 1e-6
+        assert not clash(drive["coupler"], train["head shaft"]) and not clash(drive["coupler"], drive["motor"])
+        assert drive["coupler"].distance_to(train["head shaft"]) < 1e-6     # the shaft is in the bore
+        assert not clash(drive["motor"], drive["motor bracket"])
+        assert drive["motor"].distance_to(drive["motor bracket"]) < 1e-6     # seated on the face plate
+
+
+def _check_coupler_clearances():
+    """§8.11, at every check angle, both sides."""
+    for incline in p.TILT_CHECK_ANGLES:
+        plates = plates_group(incline=incline).children
+        blocks = [b for b in pillow_blocks_group(incline=incline).children if b.label.startswith("head")]
+        for side in _DRIVE_SIDES:
+            drive = _by_label(drive_group(incline=incline, drive_side=side).children)
+            swept = drive["coupler"].moved(Location())   # a cylinder already: the bores are inside it
+            block = min(swept.distance_to(b) for b in blocks)
+            assert block >= p.COUPLER_CLEAR_BLOCK and abs(block - p.COUPLER_BLOCK_GAP) < 1e-6, f"{block:.3f}"
+            assert swept.distance_to(drive["motor bracket"]) >= p.COUPLER_CLEAR_BRACKET
+            assert min(swept.distance_to(plate) for plate in plates) >= p.COUPLER_CLEAR_BRACKET
+
+
+def _check_drive_clears_drivetrain():
+    """§8.12 for the belts and shaft sets; the slats are in the whole-loop
+    sweep. The bracket stands on the head plate and nothing else."""
+    for takeup in _TAKEUPS:
+        others = list(belts_group(takeup=takeup).children) + [
+            c for c in drivetrain_group(takeup=takeup).children if c.label.endswith("shaft set")
+        ] + list(pillow_blocks_group(takeup=takeup).children) + list(bearings_group(takeup=takeup).children)
+        plates = plates_group(takeup=takeup).children
+        for part in _drive_parts(takeup):
+            if part.label.startswith("head shaft"):
+                continue
+            for other in others:
+                assert not clash(part, other), f"{part.label} / {other.label}"
+            for plate in plates:
+                assert not clash(part, plate), f"{part.label} / {plate.label}"
+    for side in _DRIVE_SIDES:
+        bracket, head_plate = _by_label(drive_group(drive_side=side).children)["motor bracket"], plates_group().children[-1]
+        assert bracket.distance_to(head_plate) < 1e-6
+        for x in (-p.PLATE_BOLT_X, p.PLATE_BOLT_X):   # the slots are over the plate's M5 holes
+            probe = g.at(p.CENTRE_DIST + x, g.plate_top_offset() + p.BRACKET_FOOT_T / 2, side * p.PLATE_BOLT_Z).position
+            assert not contains(bracket, (probe.X, probe.Y, probe.Z))
+            hole = g.at(p.CENTRE_DIST + x, g.plate_top_offset() - p.PLATE_THICKNESS / 2, side * p.PLATE_BOLT_Z).position
+            assert not contains(head_plate, (hole.X, hole.Y, hole.Z))
+
+
+def _check_drive_clears_base():
+    """§8.13. T2 holds everything to BASE_CLEARANCE_MIN; this also pins how
+    far they really are at 25 deg: the motor 223.4 (the spec's "about 225"),
+    the bracket's foot, lower down on the plate, 198.4."""
+    for incline in p.TILT_CHECK_ANGLES:
+        base = _by_label(tilt_base_parts(incline))["base_ref"]
+        for part in _drive_parts(incline=incline):
+            assert part.distance_to(base) >= p.BASE_CLEARANCE_MIN, part.label
+    base = _by_label(tilt_base_parts(p.TILT_MIN))["base_ref"]
+    drive = _by_label(drive_group(incline=p.TILT_MIN).children)
+    assert abs(drive["motor"].distance_to(base) - 223.4) < 0.1
+    assert abs(drive["motor bracket"].distance_to(base) - 198.4) < 0.1
+
+
 def tilt_report() -> list[str]:
     """The setting-up table (spec-tilt §8.3) and the informational numbers
     of §5.4 and T12. This is how the angle gets set by hand."""
@@ -686,7 +834,8 @@ def tilt_report() -> list[str]:
             f"  {incline:7.1f}   {g.prop_length(incline):10.1f}   {g.prop_exposed_rod(incline):11.1f}   {g.prop_turns(incline):14.1f}"
         )
     lines.append("  (exposed rod: bare thread between the knob's jam nut and the lock nut run up to the body)")
-    lines += ["", f"Prop force at {p.TILT_WEIGHT_N:g} N (an estimate until weighed), and head shaft height above the base"]
+    lines += ["", f"Prop force at {p.TILT_TOTAL_WEIGHT_N:.1f} N (frame {p.TILT_WEIGHT_N:g}, an estimate until weighed, "
+                  f"+ drive {p.DRIVE_WEIGHT_N:.1f}), and head shaft height above the base"]
     for incline in p.TILT_CHECK_ANGLES:
         head = g.height_above_base(g.shaft_axis("head", incline), incline)
         lines.append(f"  {incline:7.1f}   {g.prop_force(incline):6.0f} N   lean {g.prop_lean(incline):5.1f}   head shaft {head:6.1f}")
@@ -746,6 +895,12 @@ _CHECKS = [
     ("pillow blocks and spacers clear every slat", _check_slats_clear_pillow_blocks),
     ("pillow blocks, bearings, spacers clear belts and shaft sets", _check_bearing_parts_clear_drivetrain),
     ("pillow blocks on their plates, on their shafts", _check_blocks_on_plates),
+    ("drive: parameters and stack", _check_drive_parameters),
+    ("drive: motor bracket and pilot-bore control", _check_motor_bracket),
+    ("drive: motor, coupler, head shaft", _check_drive_parts),
+    ("drive: coupler clearances", _check_coupler_clearances),
+    ("drive: clears belts, shaft sets, blocks, plates", _check_drive_clears_drivetrain),
+    ("drive: clears the base", _check_drive_clears_base),
 ]
 
 

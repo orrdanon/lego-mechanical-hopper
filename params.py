@@ -427,6 +427,122 @@ TILT_HARDWARE = (
     ("Base fasteners", 12, "OPEN; depends on the base"),
 )
 
+# --- Drive: stepper, coupler, motor bracket -- spec-drive.md ------------------
+# The head shaft is driven directly. Everything is built for DRIVE_SIDE = +1
+# and mirrored; z below is machine z on the drive side, from the centre plane.
+
+DRIVE_SIDE = 1                    # +1 (+z) or -1 (-z) -- OPEN, spec-drive §10.1
+
+# Load and motor sizing -- §2
+GRAVITY = 9.81                    # m/s^2
+DRIVE_PULL_EST_N = 8.0            # N -- PROVISIONAL, 300 g of LEGO at 55 deg 2.4 + hopper drag ~4 + friction ~1.5
+DRIVE_TORQUE_EST = DRIVE_PULL_EST_N * PULLEY_PD / 2 / 1000   # N m, derived, 0.153
+MOTOR_RATED_CURRENT_A = 1.7       # A, catalogue
+MOTOR_HOLD_TORQUE = 0.449         # N m at the rated current, catalogue (4.58 kg cm)
+MOTOR_STEPS_PER_REV = 200         # count, 1.8 deg
+DRIVE_CURRENT_A = 1.2             # A -- PROVISIONAL, driver current limit, test D3
+DRIVE_MICROSTEPS = 16             # count, A4988 -- PROVISIONAL
+DRIVE_RUN_FACTOR = 0.8            # running torque at 30 rpm over holding -- PROVISIONAL
+DRIVE_TORQUE_AVAIL = DRIVE_RUN_FACTOR * MOTOR_HOLD_TORQUE * DRIVE_CURRENT_A / MOTOR_RATED_CURRENT_A   # N m, derived, 0.254
+DRIVE_SKIP_PULL_N = DRIVE_TORQUE_AVAIL / (PULLEY_PD / 2 / 1000)   # N, derived, 13.3, belt pull at which the motor skips
+DRIVE_STEP_RATE = SHAFT_SPEED * MOTOR_STEPS_PER_REV * DRIVE_MICROSTEPS / 60   # Hz, derived, 1600
+DRIVE_TORQUE_MARGIN_MIN = 1.5     # available over estimated torque
+
+# Motor, Waveshare NEMA 17 42.3 x 40 -- §3.1. Local origin at the centre of
+# the mounting face, +z along the shaft.
+MOTOR_SQUARE = 42.3               # mm, catalogue
+MOTOR_BODY_LEN = 40.0             # mm, catalogue
+MOTOR_PILOT_DIA = 22.0            # mm -- PROVISIONAL, NEMA 17 standard, the listing is silent
+MOTOR_PILOT_H = 2.0               # mm -- PROVISIONAL
+MOTOR_HOLE_SPACING = 31.0         # mm -- PROVISIONAL, 4 x M3 on this square
+MOTOR_HOLE_M = 3.0                # mm, M3
+MOTOR_SCREW_MAX_ENGAGE = 3.0      # mm, catalogue: longer screws can damage the motor
+MOTOR_SHAFT_DIA = 5.0             # mm, catalogue, a D-shaft; the flat is not modelled
+MOTOR_SHAFT_LEN = 23.5            # mm, catalogue, from the mounting face -- datum to be measured (D1)
+MOTOR_MASS_KG = 0.30              # kg, the store's shipping weight, an upper bound
+
+# Coupler, flexible 5 x 8 -- §3.2. Local origin on the axis at the 8-bore end.
+COUPLER_DIA = 20.0                # mm, catalogue
+COUPLER_LEN = 25.0                # mm, catalogue
+COUPLER_BORE_BIG = SHAFT_DIA      # mm, 8.0, catalogue, the head shaft's end
+COUPLER_BORE_SMALL = MOTOR_SHAFT_DIA   # mm, 5.0, catalogue, the motor's end
+COUPLER_RATED_TORQUE = 0.6        # N m, catalogue (max 1.2)
+COUPLER_ENGAGE = 10.0             # mm -- PROVISIONAL, target, per shaft
+COUPLER_ENGAGE_MAX = 11.0         # mm -- PROVISIONAL, bore depths to be measured (D1)
+COUPLER_BORE_DEPTH = COUPLER_ENGAGE_MAX   # mm, each bore, reference solid only
+COUPLER_TIP_GAP_MIN = 2.0         # mm -- PROVISIONAL, between the shaft tips inside it
+COUPLER_MASS_KG = 0.02            # kg
+
+# Axial stack -- §4, §5. The spec's PILLOW_BLOCK_HALF_W (14.0, for a bought
+# insert block) is the printed block's lip face -- README "Drive resolutions".
+PILLOW_BLOCK_HALF_W = PB_OUTBOARD_FACE_Z   # mm, 5.0, bearing centre to the block's outboard face
+COUPLER_BLOCK_GAP = 2.0           # mm -- PROVISIONAL, block face to coupler
+HEAD_SHAFT_DRIVE_EXT_MIN = PILLOW_BLOCK_HALF_W + COUPLER_BLOCK_GAP + COUPLER_ENGAGE   # mm, 17.0, past the bearing centre
+HEAD_SHAFT_LEN = float(math.ceil(SHAFT_LENGTH / 2 + BEARING_Z + HEAD_SHAFT_DRIVE_EXT_MIN))   # mm, 140.0, cut to whole mm
+HEAD_SHAFT_DRIVE_EXT = HEAD_SHAFT_LEN - SHAFT_LENGTH / 2 - BEARING_Z   # mm, 17.5 as cut; the non-drive end stays SHAFT_LENGTH/2
+COUPLER_Z = BEARING_Z + PILLOW_BLOCK_HALF_W + COUPLER_BLOCK_GAP   # mm, 57.0, the coupler's 8-bore end
+HEAD_SHAFT_ENGAGE = BEARING_Z + HEAD_SHAFT_DRIVE_EXT - COUPLER_Z   # mm, 10.5
+MOTOR_FACE_Z = COUPLER_Z + COUPLER_LEN - COUPLER_ENGAGE + MOTOR_SHAFT_LEN   # mm, 95.5, the motor's mounting face
+COUPLER_TIP_GAP = (MOTOR_FACE_Z - MOTOR_SHAFT_LEN) - (BEARING_Z + HEAD_SHAFT_DRIVE_EXT)   # mm, 4.5
+
+# Motor bracket, printed -- §6. Local origin on the foot's underside at the
+# head shaft station, at the face plate's inboard face; +z outboard.
+FACE_PLATE_T = 5.0                # mm -- PROVISIONAL
+FACE_PLATE_Z = MOTOR_FACE_Z - FACE_PLATE_T   # mm, 90.5, machine z of the face plate's inboard face
+FACE_PLATE_ABOVE_AXIS = 24.0      # mm, the face plate's top above the shaft axis
+BRACKET_W = PLATE_WIDTH           # mm, 45.0, along the run, centred on the head shaft
+BRACKET_FOOT_T = 6.0              # mm -- PROVISIONAL
+BRACKET_FOOT_INBOARD = 19.5       # mm -- PROVISIONAL, the foot's reach inboard of the face plate
+BRACKET_FOOT_OUTBOARD = FRAME_WIDTH / 2 - FACE_PLATE_Z   # mm, 46.5, to the plate edge
+BRACKET_PILOT_BORE = 22.4         # mm -- PROVISIONAL, 0.4 clearance, tuned on the first print (D2)
+MOTOR_HOLE_DIA = 3.4              # mm, M3 clearance
+BRACKET_SLOT_W = M5_CLEARANCE_DIA   # mm, 5.5
+BRACKET_SLOT_TRAVEL = 1.5         # mm -- PROVISIONAL, +/-, along the run, to line the motor up with the shaft
+BRACKET_FILLET = 5.0              # mm -- PROVISIONAL, foot to face plate, both sides
+BRACKET_TIE_SLOT = (4.0, 2.0)     # mm -- PROVISIONAL, cable-tie slot through the foot, along the run x across
+BRACKET_TIE_SLOT_INSET = 3.0      # mm -- PROVISIONAL, its centre in from the foot's outboard end
+BRACKET_MASS_KG = 0.04            # kg, PETG
+M5_HEAD_H = 5.0                   # mm, socket head, catalogue
+MOTOR_HEAD_CLEAR = 5.0            # mm, motor body above the M5 heads it sits over
+MOTOR_SCREW_LEN = 8.0             # mm, M3 x 8, motor to bracket
+BRACKET_M5_LEN = 20.0             # mm, M5 x 20, replaces the head plate's two drive-side bolts
+M5_TNUT_T = 5.0                   # mm, about, the frame T-nut
+COUPLER_CLEAR_BLOCK = 1.5         # mm, coupler to the pillow block (spec-drive §8.11)
+COUPLER_CLEAR_BRACKET = 2.0       # mm, coupler to the bracket and the bridge plate
+DRIVE_SCREWS_MASS_KG = 0.01       # kg
+
+assert DRIVE_SIDE in (1, -1)
+assert DRIVE_TORQUE_AVAIL / DRIVE_TORQUE_EST >= DRIVE_TORQUE_MARGIN_MIN, "motor too weak for the estimated pull"
+assert COUPLER_RATED_TORQUE > MOTOR_HOLD_TORQUE, "the coupler must never be the weak link"
+assert HEAD_SHAFT_DRIVE_EXT >= HEAD_SHAFT_DRIVE_EXT_MIN, "head shaft too short for the coupler"
+assert COUPLER_ENGAGE <= HEAD_SHAFT_ENGAGE <= COUPLER_ENGAGE_MAX, "head shaft engagement in the coupler"
+assert COUPLER_TIP_GAP >= COUPLER_TIP_GAP_MIN, "shaft tips meet inside the coupler"
+assert MOTOR_SCREW_LEN - FACE_PLATE_T <= MOTOR_SCREW_MAX_ENGAGE, "M3 screws reach too far into the motor"
+assert SHAFT_HEIGHT_ABOVE_PLATE - MOTOR_SQUARE / 2 >= BRACKET_FOOT_T + M5_HEAD_H + MOTOR_HEAD_CLEAR, "motor sits on the M5 heads"
+assert BRACKET_M5_LEN >= BRACKET_FOOT_T + PLATE_THICKNESS + M5_TNUT_T, "M5 too short to reach through the T-nut"
+assert FACE_PLATE_ABOVE_AXIS >= MOTOR_SQUARE / 2, "face plate shorter than the motor"
+assert BRACKET_PILOT_BORE > MOTOR_PILOT_DIA, "pilot bore must clear the boss"
+
+# Tilt load -- §7. The drive is a separate term so that weighing the frame
+# replaces only TILT_WEIGHT_N. Its CG is on the head shaft axis.
+DRIVE_MASS_KG = MOTOR_MASS_KG + COUPLER_MASS_KG + BRACKET_MASS_KG + DRIVE_SCREWS_MASS_KG   # kg, 0.37
+DRIVE_WEIGHT_N = DRIVE_MASS_KG * GRAVITY   # N, 3.6
+DRIVE_CG_T = CENTRE_DIST          # mm, on the head shaft
+DRIVE_CG_OFFSET = 0.0             # mm
+TILT_TOTAL_WEIGHT_N = TILT_WEIGHT_N + DRIVE_WEIGHT_N   # N, 37.6
+TILT_TOTAL_CG_T = (TILT_WEIGHT_N * TILT_CG_T + DRIVE_WEIGHT_N * DRIVE_CG_T) / TILT_TOTAL_WEIGHT_N   # mm, 232.9
+TILT_TOTAL_CG_OFFSET = (TILT_WEIGHT_N * TILT_CG_OFFSET + DRIVE_WEIGHT_N * DRIVE_CG_OFFSET) / TILT_TOTAL_WEIGHT_N   # mm, -36.1
+
+# Bought parts for the drive, (item, quantity, use) -- spec-drive §3, §11
+DRIVE_HARDWARE = (
+    ("NEMA 17 stepper 42.3 x 40, 1.7 A (4P-748700)", 1, "drives the head shaft"),
+    ("Flexible coupler 5 x 8 (4P-6813)", 1, "motor to head shaft"),
+    (f"M3 x {MOTOR_SCREW_LEN:g} socket head", 4, "motor to bracket"),
+    (f"M5 x {BRACKET_M5_LEN:g} socket head + T-nut", 2, "bracket and head plate to the rail, drive side"),
+    ("Pololu A4988 driver (product 1146)", 1, f"{DRIVE_CURRENT_A:g} A limit, 1/{DRIVE_MICROSTEPS} step, 12 V assumed"),
+    ("JST 6-pin adapter cable (product 6500)", 1, "motor lead"),
+)
+
 # --- Slat -----------------------------------------------------------------
 
 SLAT_PITCH = 18.0      # mm, 6 belt teeth -- rev D; divides the 828mm belt into 46 slats
@@ -477,6 +593,7 @@ PRINT_ROT_PROP_FOOT = (0.0, 0.0, 0.0)        # deg, top wall up -- native orient
 PRINT_ROT_KNOB = (0.0, 0.0, 0.0)             # deg, flat face down -- native orientation
 PRINT_ROT_PILLOW_BLOCK = (180.0, 0.0, 0.0)   # deg, outboard (lip) face down, pocket opening up
 PRINT_ROT_SPACER = (0.0, 0.0, 0.0)           # deg, axis vertical, either end down -- native orientation
+PRINT_ROT_MOTOR_BRACKET = (90.0, 0.0, 0.0)   # deg, foot down: local +y (up) to the bed's +z; spec-drive's face-plate-down is not a flat face, README "Drive resolutions"
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------

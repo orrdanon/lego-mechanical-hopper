@@ -1,6 +1,6 @@
 """Cut list for everything sawn rather than printed: the plywood bridge
-plates, and the tilt mechanism's cross-member and threaded rod (spec-tilt
-§8.4). Writes out/cut_list.txt -- the sizes and hole positions you actually
+plates, the tilt mechanism's cross-member and threaded rod (spec-tilt
+§8.4), and the two shafts, which differ since the drive (spec-drive §8). Writes out/cut_list.txt -- the sizes and hole positions you actually
 need at the saw. None of these is exported as STL (phase 2 §8.6, phase 4
 §9.6)."""
 
@@ -44,10 +44,23 @@ def tilt_lines() -> list[str]:
     ]
 
 
+def shaft_lines() -> list[str]:
+    """The two 8 mm shafts: the head one is longer on its drive end only
+    (spec-drive §4), so its flat is not central."""
+    tail_to_flat = p.SHAFT_LENGTH / 2 - p.SHAFT_FLAT_LENGTH / 2
+    return [
+        "Shafts  x2",
+        f"  material : {p.SHAFT_DIA:g} mm steel rod",
+        f"  tail     : {p.SHAFT_LENGTH:g} mm, flat {p.SHAFT_FLAT_DEPTH:g} deep x {p.SHAFT_FLAT_LENGTH:g} long, centred",
+        f"  head     : {p.HEAD_SHAFT_LEN:g} mm, flat {p.SHAFT_FLAT_DEPTH:g} deep x {p.SHAFT_FLAT_LENGTH:g} long, starting",
+        f"             {tail_to_flat:g} mm from the non-drive end (not centred); the long end goes to the motor",
+    ]
+
+
 def write_cut_list() -> Path:
     OUT_DIR.mkdir(exist_ok=True)
     path = OUT_DIR / "cut_list.txt"
-    lines = ["Cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""] + tilt_lines() + [""]
+    lines = ["Cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""] + tilt_lines() + [""] + shaft_lines() + [""]
     path.write_text("\n".join(lines))
     return path
 
