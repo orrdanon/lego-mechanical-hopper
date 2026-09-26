@@ -1,6 +1,6 @@
 """Small, part-agnostic helpers for inspecting and comparing solids."""
 
-from build123d import BoundBox, Box, Part, Pos, Shape, ShapeList
+from build123d import Align, BoundBox, Box, CenterOf, GeomType, Part, Pos, Shape, ShapeList, Vector
 
 
 def _volume(result) -> float:
@@ -86,3 +86,32 @@ def min_distance(a: Shape, others, limit: float) -> float:
         gap = _box_gap(box, b.bounding_box())
         least = min(least, gap if gap >= limit else a.distance_to(b))
     return least
+
+
+def level_fill(cavity: Shape) -> tuple[float, Vector]:
+    """(volume in litres, centroid) of the part of `cavity` below the
+    horizontal plane through its lowest rim point: what it holds, filled
+    level, before it spills. `cavity` is placed in the machine frame at its
+    incline; the machine frame never tilts, so horizontal is always +Y up.
+    The rim is the cavity's most upward-facing planar face (hopper-spec §6)."""
+    rim = max(
+        (face for face in cavity.faces() if face.geom_type == GeomType.PLANE),
+        key=lambda face: face.normal_at().Y,
+    )
+    level = min(vertex.Y for vertex in rim.vertices())
+    box = cavity.bounding_box()
+    below = Pos(box.center().X, level, box.center().Z) * Box(
+        2 * box.size.X, 2 * box.size.Y, 2 * box.size.Z, align=(Align.CENTER, Align.MAX, Align.CENTER)
+    )
+    filled = cavity & below
+    return filled.volume / 1e6, filled.center(CenterOf.MASS)
+
+
+def mass_properties(parts: list[Shape], densities: list[float], points: tuple = ()) -> tuple[float, Vector]:
+    """(mass in kg, centre of gravity) of `parts`, each solid at its density
+    in g/cm^3 (volumes are mm^3), plus any `points`, (mass kg, position) for
+    bought parts not worth a solid's density."""
+    masses = [(part.volume * density * 1e-6, part.center(CenterOf.MASS)) for part, density in zip(parts, densities, strict=True)]
+    masses += list(points)
+    total = sum(mass for mass, _ in masses)
+    return total, sum((centre * mass for mass, centre in masses), Vector()) / total

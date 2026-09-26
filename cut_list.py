@@ -1,12 +1,15 @@
 """Cut list for everything sawn rather than printed: the plywood bridge
 plates, the tilt mechanism's cross-member and threaded rod (spec-tilt
-§8.4), and the two shafts, which differ since the drive (spec-drive §8). Writes out/cut_list.txt -- the sizes and hole positions you actually
-need at the saw. None of these is exported as STL (phase 2 §8.6, phase 4
-§9.6)."""
+§8.4), the two shafts, which differ since the drive (spec-drive §8),
+and the hopper's side panels and walls (hopper-spec §9.9). Writes
+out/cut_list.txt -- the sizes and hole positions you actually need at the
+saw. None of these is exported as STL (phase 2 §8.6, phase 4 §9.6)."""
 
 from pathlib import Path
 
+import geometry as g
 import params as p
+from parts.hopper import back_wall_outline, front_wall_outline, side_panel_outline
 
 OUT_DIR = Path(__file__).resolve().parent / "out"
 
@@ -57,10 +60,53 @@ def shaft_lines() -> list[str]:
     ]
 
 
+def _polygon_lines(title: str, thickness: float, outline, holes, origin: str, to_cut) -> list[str]:
+    """One plywood part as a dimensioned polygon: its corners in order and
+    its holes, each mapped by `to_cut` from the part's own 2D frame to
+    distances from the corner named in `origin`."""
+    corners = [to_cut(a, b) for a, b in outline]
+    lines = [title, f"  material : {thickness:g} mm plywood", f"  corners  : in order, mm from {origin}"]
+    lines += [f"             ({x:7.1f}, {y:7.1f})" for x, y in corners]
+    lines.append("  holes    : diameter at (x, y), same origin")
+    lines += [f"             {dia:g} at ({x:7.1f}, {y:7.1f})" for x, y, dia in ((*to_cut(a, b), dia) for a, b, dia in holes)]
+    return lines
+
+
+def hopper_lines() -> list[str]:
+    """The hopper's four plywood parts. Every edge is cut square to the
+    face; the back wall stands at BACK_WALL_ANGLE to the run, and its top
+    and bottom edges are square to its own face."""
+    front = p.WALL_THICKNESS   # the panel's front edge, in its own frame
+    lines = []
+    for side, name in ((1, "+z (right, looking from tail to head)"), (-1, "-z (left)")):
+        outline, holes = side_panel_outline(side)
+        lines += _polygon_lines(
+            f"Hopper side panel {name}  x1", p.PANEL_THICKNESS, outline, holes,
+            "the bottom front corner, x back along the bottom edge, y up the front edge, seen from inside",
+            lambda a, b: (front - a, b),
+        ) + [""]
+    lines[-1:] = ["  (the two panels share the outline; only the corner cleat holes differ)", ""]
+    bottom = g.back_wall_u(p.SKIRT_GAP)
+    outline, holes = back_wall_outline()
+    lines += _polygon_lines(
+        "Hopper back wall  x1", p.WALL_THICKNESS, outline, holes,
+        "the bottom edge's midpoint, x across (to the right seen from the tail end), y up the face",
+        lambda a, b: (a, b - bottom),
+    ) + [""]
+    outline, holes = front_wall_outline()
+    lines += _polygon_lines(
+        "Hopper front wall  x1", p.WALL_THICKNESS, outline, holes,
+        "the bottom edge's midpoint, x across (to the right seen from the tail end), y up the face",
+        lambda a, b: (a, b - p.SKIRT_GAP),
+    )
+    return lines
+
+
 def write_cut_list() -> Path:
     OUT_DIR.mkdir(exist_ok=True)
     path = OUT_DIR / "cut_list.txt"
     lines = ["Cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""] + tilt_lines() + [""] + shaft_lines() + [""]
+    lines += hopper_lines() + [""]
     path.write_text("\n".join(lines))
     return path
 

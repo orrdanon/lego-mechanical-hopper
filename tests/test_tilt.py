@@ -287,8 +287,8 @@ def test_prop_force():
 def test_prop_force_at_doubled_weight():
     """The guard on the weight estimate, frame and drive together (spec-drive
     §8.14) -- README 'Prop force at doubled weight'."""
-    assert all(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) <= p.PROP_FORCE_MAX for a in GRID)
-    assert max(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) for a in GRID) == approx(225.7, abs=0.5)
+    assert all(g.prop_force(a, g.doubled(g.machine_loads())) <= p.PROP_FORCE_MAX for a in GRID)
+    assert max(g.prop_force(a, g.doubled(g.machine_loads())) for a in GRID) == approx(225.7, abs=0.5)
 
 
 # --- Printed prop parts -------------------------------------------------------------------

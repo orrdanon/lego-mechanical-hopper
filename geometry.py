@@ -61,6 +61,19 @@ def cleat_tip_radius() -> float:
     return belt_back_radius() + params.SLAT_THICKNESS + params.CLEAT_HEIGHT
 
 
+def slat_top_radius() -> float:
+    """Radius of the slat top face, the carrying surface. On the carrying run
+    it is the offset the hopper's heights h are measured from.
+    = belt_back_radius() + SLAT_THICKNESS = 22.947"""
+    return belt_back_radius() + params.SLAT_THICKNESS
+
+
+def cleat_corner_radius() -> float:
+    """Radius swept by the corners of the cleat tips round a pulley, a
+    little more than cleat_tip_radius(). = 35.004"""
+    return math.hypot(cleat_tip_radius(), params.CLEAT_WIDTH_TIP / 2)
+
+
 def guide_rim_radius() -> float:
     """Radius of the guide wheel's rim, just under the slat contact face.
     = belt_back_radius() - GUIDE_RIM_GAP = 19.447"""
@@ -325,18 +338,46 @@ def prop_exposed_rod(incline: float = params.INCLINE) -> float:
     return prop_length(incline) - params.PROP_BODY_LEN - params.FOOT_LEN - params.FOOT_STACK + params.STACK_CLEARANCE
 
 
-def prop_force(incline: float = params.INCLINE, weight: float = params.TILT_TOTAL_WEIGHT_N) -> float:
-    """Compression in the prop, N: the weight's moment about the hinge axis
-    over the perpendicular distance from the hinge axis to the prop line.
-    The weight acts at the combined CG of the frame estimate and the drive
-    (spec-drive §7), so doubling `weight` doubles both. Informational --
-    TILT_WEIGHT_N is an estimate (spec-tilt §5.4)."""
+def frame_load() -> tuple[float, float, float]:
+    """The frame's own entry in a prop_force() load list: (mass kg, t,
+    offset). TILT_WEIGHT_N is an estimate until the frame is weighed."""
+    return (params.TILT_WEIGHT_N / params.GRAVITY, params.TILT_CG_T, params.TILT_CG_OFFSET)
+
+
+def drive_load() -> tuple[float, float, float]:
+    """The drive's entry: motor, coupler, bracket and screws on the head
+    shaft (spec-drive §7)."""
+    return (params.DRIVE_MASS_KG, params.DRIVE_CG_T, params.DRIVE_CG_OFFSET)
+
+
+def machine_loads() -> list[tuple[float, float, float]]:
+    """Everything on the frame before the hopper: the frame and the drive.
+    Their sum is TILT_TOTAL_WEIGHT_N at TILT_TOTAL_CG_T, TILT_TOTAL_CG_OFFSET."""
+    return [frame_load(), drive_load()]
+
+
+def doubled(loads) -> list[tuple[float, float, float]]:
+    """A prop_force() load list with every mass doubled: the guard on the
+    mass estimates (spec-tilt §5.4, spec-drive §8.14, hopper-spec D2)."""
+    return [(2 * mass, t, offset) for mass, t, offset in loads]
+
+
+def prop_force(incline: float = params.INCLINE, loads=None) -> float:
+    """Compression in the prop, N: the moment of every load about the hinge
+    axis over the perpendicular distance from the hinge axis to the prop
+    line. `loads` is a list of (mass kg, t, offset), each a point mass on
+    the frame (hopper-spec §7.3); machine_loads() if not given, the frame
+    and the drive (spec-drive §7). Informational -- the masses are
+    estimates (spec-tilt §5.4)."""
     hinge = hinge_axis(incline)
-    centroid = at(params.TILT_TOTAL_CG_T, params.TILT_TOTAL_CG_OFFSET, incline=incline).position
     pin_b = prop_pin_b(incline)
     axis = (prop_pin_a(incline) - pin_b).normalized()
     arm = abs((pin_b - hinge).cross(axis).Z)
-    return weight * (centroid.X - hinge.X) / arm
+    moment = sum(
+        mass * params.GRAVITY * (at(t, offset, incline=incline).position.X - hinge.X)
+        for mass, t, offset in (loads if loads is not None else machine_loads())
+    )
+    return moment / arm
 
 
 def prop_foot_frame(incline: float = params.INCLINE, pin_b_x: float = params.PROP_PIN_B_X) -> Location:
@@ -361,3 +402,89 @@ def xmember_plate_clearance(xmember_t: float = params.XMEMBER_T) -> float:
         abs(plate_t(i) - xmember_t) - params.PLATE_WIDTH / 2 - params.FRAME_PROFILE / 2
         for i in range(params.PLATE_STATIONS)
     )
+
+
+def run_coords(point: Vector, incline: float = params.INCLINE) -> tuple[float, float, float]:
+    """(t, offset, lateral) of a machine-frame point: the inverse of at()."""
+    rel = point - shaft_axis("tail", incline)
+    return (rel.dot(run_direction(incline)), rel.dot(run_normal(incline)), rel.Z)
+
+
+# --- Hopper -- hopper-spec-v1.md §2, §3 -------------------------------------------
+# Hopper heights h are above the slat top face. It is fixed to the frame, so
+# none of these take a takeup, and all but the slopes are incline-free.
+
+
+def hopper_offset(h: float) -> float:
+    """The at() offset of a point h above the slat top face on the carrying
+    run. = slat_top_radius() + h"""
+    return slat_top_radius() + h
+
+
+def rim_h(t: float, rim_front_h: float = params.RIM_FRONT_H) -> float:
+    """Height of the rim line at run position t: RIM_FRONT_H at the front
+    wall, rising tailward so that it is horizontal at RIM_LEVEL_INCLINE.
+    `rim_front_h` exists for the capacity negative control."""
+    return rim_front_h + (params.HOPPER_FRONT_T - t) * math.tan(math.radians(params.RIM_LEVEL_INCLINE))
+
+
+def back_wall_up() -> tuple[float, float]:
+    """Unit vector (t, h) up the back wall's inner face: BACK_WALL_ANGLE
+    from the run, leaning headward of the run normal."""
+    a = math.radians(params.BACK_WALL_ANGLE)
+    return (math.cos(a), math.sin(a))
+
+
+def back_wall_in() -> tuple[float, float]:
+    """Unit normal (t, h) of the back wall's inner face, into the hopper:
+    headward and slightly down."""
+    up_t, up_h = back_wall_up()
+    return (up_h, -up_t)
+
+
+def back_wall_point(u: float, w: float = 0.0) -> tuple[float, float]:
+    """(t, h) of the point u up the back wall's inner face from the seal
+    brush root line and w out of it into the hopper (negative w is into
+    and behind the wall). The inner face contains the root line."""
+    (up_t, up_h), (in_t, in_h) = back_wall_up(), back_wall_in()
+    return (params.SEAL_ROOT_T + u * up_t + w * in_t, params.SEAL_ROOT_H + u * up_h + w * in_h)
+
+
+def back_wall_u(h: float, w: float = 0.0) -> float:
+    """The u of back_wall_point() at height h, on the plane w."""
+    return (h - params.SEAL_ROOT_H - w * back_wall_in()[1]) / back_wall_up()[1]
+
+
+def back_wall_t(h: float, w: float = 0.0) -> float:
+    """Run position of the back wall plane w at height h; w = 0 is the
+    inner face, w = -WALL_THICKNESS the outer. 19.59 at h = 0 on the inner face."""
+    return back_wall_point(back_wall_u(h, w), w)[0]
+
+
+def back_wall_rim_h(w: float = 0.0, rim_front_h: float = params.RIM_FRONT_H) -> float:
+    """Height at which the rim line crosses the back wall plane w: 188.8 on
+    the inner face."""
+    h0, h1 = 0.0, 2 * rim_h(params.HOPPER_TAIL_KEEPOUT_T, rim_front_h)
+    for _ in range(200):   # bisection: the wall rises headward, the rim falls
+        mid = (h0 + h1) / 2
+        if mid < rim_h(back_wall_t(mid, w), rim_front_h):
+            h0 = mid
+        else:
+            h1 = mid
+    return (h0 + h1) / 2
+
+
+def flare_slope(incline: float = params.INCLINE) -> float:
+    """Steepest slope of the liner flare from horizontal, deg. The flare
+    contains the run direction and leans FLARE_ANGLE out from the run
+    normal, so its normal is (0, -sin F, cos F) in (t, n, z); up is
+    (sin theta, cos theta, 0) in the same frame."""
+    f, theta = math.radians(params.FLARE_ANGLE), math.radians(incline)
+    return math.degrees(math.acos(math.sin(f) * math.cos(theta)))
+
+
+def back_wall_slope(incline: float = params.INCLINE) -> float:
+    """Slope of the back wall's inner face from horizontal, deg: the wall
+    stands BACK_WALL_ANGLE + incline from horizontal, leaning over the pile."""
+    rise = params.BACK_WALL_ANGLE + incline
+    return 180.0 - rise if rise > 90.0 else rise

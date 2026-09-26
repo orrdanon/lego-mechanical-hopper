@@ -31,17 +31,20 @@ import sys
 from fnmatch import fnmatchcase
 from typing import Callable
 
-from build123d import Box, Compound, Location, Pos, Rot
+from build123d import Box, Compound, Location, Plane, Pos, Rot
 
 import params as p
 from geometry import (
-    at, base_frame, is_cleated, loop_at, loop_length, plate_role, plate_t, plate_top_offset, prop_body_frame,
-    prop_foot_frame, prop_length, rail_top_offset, tail_shaft_t,
+    at, back_wall_point, back_wall_u, base_frame, guide_rim_radius, hopper_offset, is_cleated, loop_at, loop_length,
+    plate_role, plate_t, plate_top_offset, prop_body_frame, prop_foot_frame, prop_length, rail_lateral,
+    rail_top_offset, tail_shaft_t,
 )
 from parts.base_ref import base_ref
 from parts.bearing import bearing
 from parts.belt import belt_band, belt_loop
 from parts.bridge_plate import bridge_plate
+from parts.brush import brush_backing, brush_bristles
+from parts.carry_rail import carry_rail, rail_bridge
 from parts.coupler import coupler
 from parts.frame import cross_member, frame
 from parts.hardware import hex_nut, pin_bolt, threaded_rod, washer
@@ -49,6 +52,10 @@ from parts.hinge import hinge_block, hinge_bracket
 from parts.motor import motor
 from parts.motor_bracket import motor_bracket
 from parts.pillow_block import pillow_block
+from parts.hopper import (
+    back_wall, corner_cleat, corner_cleat_places, front_wall, hopper_cavity, hopper_foot, liner, meter_clamp,
+    seal_clamp, side_panel,
+)
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft import shaft
 from parts.shaft_set import shaft_set
@@ -263,6 +270,59 @@ def tilt_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INC
     return _group("tilt", tilt_frame_parts(incline) + tilt_base_parts(incline) + tilt_prop_parts(incline))
 
 
+def _in_hopper(t: float, h: float, z: float = 0.0, incline: float = p.INCLINE) -> Location:
+    """at() for a point given in the hopper's (t, h, z), h above the slat
+    top face (parts/hopper.py)."""
+    return at(t, hopper_offset(h), z, incline)
+
+
+def hopper_parts(incline: float = p.INCLINE, meter_gap: float = p.METER_GAP, rail_raise: float = 0.0) -> list:
+    """Everything of the hopper, placed (hopper-spec §4). `meter_gap` sets
+    the metering clamp on its slots, METER_GAP_MIN..METER_GAP_MAX, and
+    `rail_raise` lifts the carry rail's lands; both exist for the checks."""
+    seal_root = _in_hopper(p.SEAL_ROOT_T, p.SEAL_ROOT_H, incline=incline) * Rot(0, 0, p.SEAL_BRUSH_RAKE)
+    meter = _in_hopper(p.HOPPER_FRONT_T, meter_gap, incline=incline)
+    meter_root = meter * Pos(-p.METER_CLAMP_T / 2, p.BRUSH_FREE_LEN, 0) * Rot(0, 0, p.METER_RAKE)
+    notch = back_wall_point(back_wall_u(p.BACK_NOTCH_H))
+    parts = [
+        side_panel(1).moved(at(p.HOPPER_FRONT_T, p.PANEL_BOTTOM_OFFSET, p.HOPPER_HALF_W, incline)),
+        side_panel(-1).moved(at(p.HOPPER_FRONT_T, p.PANEL_BOTTOM_OFFSET, -p.HOPPER_HALF_W, incline)),
+        liner(1).moved(_in_hopper(p.HOPPER_FRONT_T, p.SKIRT_GAP, p.SKIRT_INSET, incline)),
+        liner(-1).moved(_in_hopper(p.HOPPER_FRONT_T, p.SKIRT_GAP, -p.SKIRT_INSET, incline)),
+        back_wall().moved(_in_hopper(p.SEAL_ROOT_T, p.SEAL_ROOT_H, incline=incline)),
+        front_wall().moved(_in_hopper(p.HOPPER_FRONT_T, 0.0, incline=incline)),
+        seal_clamp().moved(_in_hopper(*notch, incline=incline)),
+        meter_clamp().moved(meter),
+        _labelled(brush_backing().moved(seal_root), "seal brush backing"),
+        _labelled(brush_bristles().moved(seal_root), "seal brush bristles"),
+        _labelled(brush_backing().moved(meter_root), "metering brush backing"),
+        _labelled(brush_bristles().moved(meter_root), "metering brush bristles"),
+        carry_rail(rail_raise).moved(at(p.RAIL_T0, guide_rim_radius(), incline=incline)),
+        rail_bridge().moved(at(p.RAIL_ARM_T_CENTRE, plate_top_offset(), incline=incline)),
+    ]
+    for t in p.HOPPER_FOOT_T:
+        for side in (1, -1):
+            foot = hopper_foot(side).moved(at(t, rail_top_offset(), side * rail_lateral(), incline))
+            parts.append(_labelled(foot, f"{foot.label} at {t:g}"))
+    for name, origin, x_dir, z_dir in corner_cleat_places():
+        turn = Location(Plane(origin=(0, 0, 0), x_dir=x_dir, z_dir=z_dir))
+        parts.append(_labelled(corner_cleat().moved(_in_hopper(origin.X, origin.Y, origin.Z, incline) * turn), name))
+    return parts
+
+
+def hopper_cavity_placed(incline: float = p.INCLINE, rim_front_h: float = p.RIM_FRONT_H):
+    """The hopper's cavity reference solid, placed: what the capacity and
+    load checks fill. Not a member of any group."""
+    return hopper_cavity(rim_front_h).moved(_in_hopper(p.HOPPER_FRONT_T, 0.0, incline=incline))
+
+
+def hopper_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
+    """The hopper, its brushes, the carry rail and its bridge (hopper-spec
+    §9.6). `detail` is ignored, and so is `takeup`: nothing of it is on the
+    tail plate. The checks run it against the tail at every take-up."""
+    return _group("hopper", hopper_parts(incline))
+
+
 GROUPS: dict[str, Callable[..., Compound]] = {
     "frame": frame_group,
     "plates": plates_group,
@@ -274,6 +334,7 @@ GROUPS: dict[str, Callable[..., Compound]] = {
     "bearings": bearings_group,
     "spacers": spacers_group,
     "drive": drive_group,
+    "hopper": hopper_group,
 }
 
 # Fixed colour per group, so a group keeps its colour between runs.
@@ -288,6 +349,7 @@ COLOURS: dict[str, str] = {
     "bearings": "#c9ccd1",        # bright steel
     "spacers": "#b54f8a",         # printed magenta
     "drive": "#1f1f24",           # motor black
+    "hopper": "#8e5bb5",   # printed purple, plywood and all
 }
 
 # Members shown in a colour of their own, and flagged in the report.
@@ -355,8 +417,8 @@ def show_assembly(*names: str, detail: bool = False, incline: float = p.INCLINE)
 def report(incline: float = p.INCLINE) -> list[str]:
     """What is in each group, with placeholders flagged, and the bought
     hardware for the tilt (spec-tilt §6, §7), the pillow blocks
-    (spec-pillow-blocks §1) and the drive (spec-drive §3, §11) -- the
-    project has no BOM."""
+    (spec-pillow-blocks §1), the drive (spec-drive §3, §11) and the
+    hopper (hopper-spec §4.8) -- the project has no BOM."""
     lines = [f"Assembly at incline {incline:g} deg, prop {prop_length(incline):.1f} pin to pin", ""]
     for name, group in assembly(incline=incline).items():
         lines.append(f"{name} ({len(group.children)})")
@@ -375,6 +437,8 @@ def report(incline: float = p.INCLINE) -> list[str]:
     lines += ["", f"Bought parts, drive ({'+z' if p.DRIVE_SIDE > 0 else '-z'} side)"]
     head_shaft = (f"8 mm shaft, {p.HEAD_SHAFT_LEN:g} long", 1, "head shaft, cut from stock (cut list)")
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.DRIVE_HARDWARE + (head_shaft,)]
+    lines += ["", "Bought hardware, hopper"]
+    lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.HOPPER_HARDWARE]
     return lines
 
 

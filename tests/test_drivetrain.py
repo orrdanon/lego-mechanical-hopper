@@ -10,6 +10,7 @@ from pytest import approx
 import geometry as g
 import params as p
 from assembly import drive_group, drivetrain_group, pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_group
+from checks import hopper_fixed
 from parts.belt import belt_band, belt_loop, belt_segment, belt_wrapped
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import slat
@@ -168,6 +169,7 @@ def test_every_slat_clears_the_drivetrain_and_plates(takeup, incline):
     for side in (1, -1):                                             # and the drive, spec-drive §8.12, §8.15
         fixed += drive_group(takeup=takeup, incline=incline, drive_side=side).children
         fixed += drivetrain_group(takeup=takeup, incline=incline, drive_side=side).children
+    fixed += hopper_fixed(incline)                                   # and the hopper's, all but the bristles: hopper-spec C1
     slats = slats_group(detail=True, takeup=takeup, incline=incline).children
     assert len(slats) == p.SLAT_COUNT
     for s in slats:
