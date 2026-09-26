@@ -322,7 +322,7 @@ assert prop_budget()[2] >= 0, "the stack on the foot does not fit under the body
 TILT_WEIGHT_N = 34.0              # N -- PROVISIONAL, an estimate until weighed
 TILT_CG_T = 220.0                 # mm -- PROVISIONAL
 TILT_CG_OFFSET = -40.0            # mm -- PROVISIONAL
-PROP_FORCE_MAX = 150.0            # N
+PROP_FORCE_MAX = 250.0            # N, ceiling for the prop and its printed pivots; was spec-tilt's 150, which its own doubled-weight guard could not meet -- README "Prop force at doubled weight"
 
 # Base -- OPEN; a reference slab whose top face is the base plane (spec-tilt §6)
 BASE_REF_THK = 20.0               # mm

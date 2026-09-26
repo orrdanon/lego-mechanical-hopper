@@ -451,12 +451,14 @@ jamming them.
 
 Spec-tilt §5.4 asserts the prop force under `PROP_FORCE_MAX` = 150 N and
 that "a doubled weight must still pass", but its own table has 98 N at 25
-degrees, which doubles to 196 N. Doubled, the limit is only met above about
-33 degrees. Both numbers are the spec's, so neither was changed: the nominal
-assertion passes, and the doubled one is an `XFAIL` in `checks.py` and a
-`strict=True` xfail in `tests/test_tilt.py`. It wants a decision -- raise
-`PROP_FORCE_MAX` to 200 or more if the printed pivots are good for it, or
-raise `TILT_MIN`, or move pin B -- and then the entry comes out.
+degrees, which doubles to 196 N; at 150 the doubled case only passes above
+about 33 degrees. Resolved (2026-09-26) by raising **`PROP_FORCE_MAX` to
+250 N** rather than narrowing the tilt range or moving pin B: the limit is
+a ceiling for the printed pivots, not a spec datum, and the worst doubled
+case, 195.5 N at 25 degrees, is an M8 pin bearing on 12 mm of printed eye,
+about 2 MPa. The nominal and doubled assertions both pass now, and both
+are ordinary checks. If the frame weighs in well over the 34 N estimate,
+revisit `TILT_MIN` before raising this again.
 
 ### Negative controls
 

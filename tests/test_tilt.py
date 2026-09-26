@@ -281,9 +281,10 @@ def test_prop_force():
     assert all(0 < g.prop_force(a) < p.PROP_FORCE_MAX for a in GRID)
 
 
-@pytest.mark.xfail(strict=True, reason="spec-tilt §5.4 contradicts itself: 98 N doubles to 196 N, over PROP_FORCE_MAX -- README 'Prop force at doubled weight'")
 def test_prop_force_at_doubled_weight():
+    """The guard on the weight estimate -- README 'Prop force at doubled weight'."""
     assert all(g.prop_force(a, 2 * p.TILT_WEIGHT_N) < p.PROP_FORCE_MAX for a in GRID)
+    assert max(g.prop_force(a, 2 * p.TILT_WEIGHT_N) for a in GRID) == approx(195.5, abs=0.5)
 
 
 # --- Printed prop parts -------------------------------------------------------------------

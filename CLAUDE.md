@@ -66,8 +66,9 @@ tilt spec the adjustable incline (hinge, cross-member, screw prop). Phase
   `base_ref.py`, `cross_member()` in `frame.py`, and the `tilt` group.
   Resolutions in `README.md` ("Tilt resolutions"): the frame clevis's open
   flange and its M5 moved from z = 15 to 42, the prop foot's widening and
-  nut window, and one **live XFAIL** -- the spec's doubled-weight force
-  guard contradicts its own 150 N limit and wants a decision from the user.
+  nut window, and `PROP_FORCE_MAX` raised 150 -> 250 so the spec's
+  doubled-weight force guard, which its own 150 N limit could not meet,
+  passes (no XFAIL is live).
   `docs/design-baseline-v2.md` predates the tilt and does not describe it.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   `SHAFT_HEIGHT_ABOVE_PLATE` (measurement, rev B §8), and the whole

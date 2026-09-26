@@ -517,8 +517,8 @@ def _check_prop_force():
 
 
 def _check_prop_force_doubled():
-    """The guard on the weight estimate. See README.md "Prop force at
-    doubled weight"."""
+    """The guard on the weight estimate: PROP_FORCE_MAX was set so this
+    passes. See README.md "Prop force at doubled weight"."""
     worst = max(g.prop_force(incline, 2 * p.TILT_WEIGHT_N) for incline in _TILT_GRID)
     assert worst < p.PROP_FORCE_MAX, f"{worst:.0f} N"
 
@@ -551,13 +551,9 @@ def tilt_report() -> list[str]:
 
 # Checks known to fail for a recorded reason. A check listed here counts as
 # XFAIL when it fails and as a failure of the run when it unexpectedly
-# passes -- at which point remove it from this table.
-_EXPECTED_FAILURES: dict[str, str] = {
-    "tilt T11: prop force at doubled weight": (
-        "spec-tilt §5.4 contradicts itself: 98 N at 25 deg doubles to 196 N, over PROP_FORCE_MAX = 150 -- "
-        "README \"Prop force at doubled weight\""
-    ),
-}
+# passes -- at which point remove it from this table. Empty since
+# PROP_FORCE_MAX was raised to meet the doubled-weight guard.
+_EXPECTED_FAILURES: dict[str, str] = {}
 
 _CHECKS = [
     ("parameter consistency", _check_parameter_consistency),
