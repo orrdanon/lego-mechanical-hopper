@@ -10,8 +10,8 @@ from pytest import approx
 import geometry as g
 import params as p
 from assembly import (
-    COLOURS, PLACEHOLDERS, assembly, bearings_group, belts_group, drivetrain_group, frame_group, pillow_blocks_group,
-    plates_group, report, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
+    COLOURS, PLACEHOLDERS, assembly, bearings_group, belts_group, drive_group, drivetrain_group, frame_group,
+    pillow_blocks_group, plates_group, report, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group, tilt_prop_parts,
 )
 from cut_list import write_cut_list
 from parts.base_ref import base_ref
@@ -73,8 +73,9 @@ def test_everything_that_tilts_clears_the_base(incline, takeup):
     base = by_label(tilt_base_parts(incline))["base_ref"]
     moving = tilt_frame_parts(incline)
     for group in (frame_group, plates_group, drivetrain_group, belts_group, slats_group,
-                  pillow_blocks_group, bearings_group, spacers_group):
+                  pillow_blocks_group, bearings_group, spacers_group, drive_group):
         moving += list(group(takeup=takeup, incline=incline).children)
+    moving += drive_group(takeup=takeup, incline=incline, drive_side=-p.DRIVE_SIDE).children
     for part in moving:
         assert part.distance_to(base) >= p.BASE_CLEARANCE_MIN, part.label
 
@@ -278,14 +279,16 @@ def test_exposed_rod_is_the_stack_clearance_plus_the_spare_at_minimum():
 
 
 def test_prop_force():
-    assert [g.prop_force(a) for a in ANGLES] == approx([98.0, 58.0, 37.0], abs=1.0)
+    """With the drive at the head shaft, spec-drive §7; the frame alone gave 98 / 58 / 37."""
+    assert [g.prop_force(a) for a in ANGLES] == approx([112.8, 67.0, 41.8], abs=1.0)
     assert all(0 < g.prop_force(a) < p.PROP_FORCE_MAX for a in GRID)
 
 
 def test_prop_force_at_doubled_weight():
-    """The guard on the weight estimate -- README 'Prop force at doubled weight'."""
-    assert all(g.prop_force(a, 2 * p.TILT_WEIGHT_N) < p.PROP_FORCE_MAX for a in GRID)
-    assert max(g.prop_force(a, 2 * p.TILT_WEIGHT_N) for a in GRID) == approx(195.5, abs=0.5)
+    """The guard on the weight estimate, frame and drive together (spec-drive
+    §8.14) -- README 'Prop force at doubled weight'."""
+    assert all(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) <= p.PROP_FORCE_MAX for a in GRID)
+    assert max(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) for a in GRID) == approx(225.7, abs=0.5)
 
 
 # --- Printed prop parts -------------------------------------------------------------------

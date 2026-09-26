@@ -14,14 +14,17 @@ Usage:
     python assembly.py plates --detail
     python assembly.py frame plates drivetrain belts slats
     python assembly.py plates pillow_blocks bearings spacers drivetrain
+    python assembly.py plates pillow_blocks drivetrain drive
     python assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"
     python assembly.py drivetrain belts "slats:slat ?" --detail   # slats 0-9 only
     python assembly.py --incline=55    # tilted; INCLINE if not given
-    python assembly.py --report        # what is in each group, and the tilt's bought hardware
+    python assembly.py --report        # what is in each group, and the bought hardware
 
 Every group also takes `takeup`, the slide of the tail bridge plate
 (drivetrain-spec §9.3), and `incline` (spec-tilt §2.1). The assembly is
 built at takeup 0; that argument exists for the whole-loop clearance checks.
+`drivetrain` and `drive` also take `drive_side`, DRIVE_SIDE by default, so
+the checks can build the drive on either side (spec-drive §8.15).
 """
 
 import sys
@@ -39,9 +42,12 @@ from parts.base_ref import base_ref
 from parts.bearing import bearing
 from parts.belt import belt_band, belt_loop
 from parts.bridge_plate import bridge_plate
+from parts.coupler import coupler
 from parts.frame import cross_member, frame
 from parts.hardware import hex_nut, pin_bolt, threaded_rod, washer
 from parts.hinge import hinge_block, hinge_bracket
+from parts.motor import motor
+from parts.motor_bracket import motor_bracket
 from parts.pillow_block import pillow_block
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft import shaft
@@ -80,16 +86,6 @@ def plates_group(detail: bool = False, takeup: float = 0.0, incline: float = p.I
     return _group("plates", plates)
 
 
-def drivetrain_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
-    """Two shafts and two shaft sets at at(0, 0) and at(CENTRE_DIST, 0), the
-    tail pair sliding with `takeup`. `detail` is ignored."""
-    parts = []
-    for end, t in (("tail", tail_shaft_t(takeup)), ("head", p.CENTRE_DIST)):
-        parts.append(_labelled(shaft().moved(at(t, 0, incline=incline)), f"{end} shaft"))
-        parts.append(_labelled(shaft_set().moved(at(t, 0, incline=incline)), f"{end} shaft set"))
-    return _group("drivetrain", parts)
-
-
 def _shaft_ends(takeup: float) -> tuple[tuple[str, float], ...]:
     """(name, run parameter) of each shaft; the tail one slides with `takeup`."""
     return (("tail", tail_shaft_t(takeup)), ("head", p.CENTRE_DIST))
@@ -98,6 +94,25 @@ def _shaft_ends(takeup: float) -> tuple[tuple[str, float], ...]:
 # The -z member of each pair below is the +z part turned end for end.
 _END_FOR_END = Rot(0, 180, 0)
 _SIDES = (("+z", 1), ("-z", -1))
+
+
+def drivetrain_group(
+    detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE, drive_side: int = p.DRIVE_SIDE,
+) -> Compound:
+    """Two shafts and two shaft sets at at(0, 0) and at(CENTRE_DIST, 0), the
+    tail pair sliding with `takeup`. The head shaft's long end is at
+    `drive_side` (spec-drive §4); it is turned about x, not y, so its flat
+    still faces the shaft set's grubs. `detail` is ignored."""
+    parts = []
+    for end, t in _shaft_ends(takeup):
+        if end == "head":
+            turn = Rot(180, 0, 0) if drive_side < 0 else Location()
+            axle = shaft(p.HEAD_SHAFT_DRIVE_EXT).moved(at(t, 0, incline=incline) * turn)
+        else:
+            axle = shaft().moved(at(t, 0, incline=incline))
+        parts.append(_labelled(axle, f"{end} shaft"))
+        parts.append(_labelled(shaft_set().moved(at(t, 0, incline=incline)), f"{end} shaft set"))
+    return _group("drivetrain", parts)
 
 
 def pillow_blocks_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
@@ -133,6 +148,21 @@ def spacers_group(detail: bool = False, takeup: float = 0.0, incline: float = p.
             f"{end} spacer {name}",
         )
         for end, t in _shaft_ends(takeup) for name, sign in _SIDES
+    ])
+
+
+def drive_group(
+    detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE, drive_side: int = p.DRIVE_SIDE,
+) -> Compound:
+    """Motor bracket on the head plate, coupler and motor on the head shaft
+    axis, all at `drive_side` (spec-drive §5, §6). Frame-fixed, so `takeup`
+    is ignored, and so is `detail`."""
+    s, c = drive_side, p.CENTRE_DIST
+    out, into = (Location(), _END_FOR_END) if s > 0 else (_END_FOR_END, Location())   # local +z outboard, inboard
+    return _group("drive", [
+        _labelled(motor_bracket().moved(at(c, plate_top_offset(), s * p.FACE_PLATE_Z, incline) * out), "motor bracket"),
+        _labelled(coupler().moved(at(c, 0, s * p.COUPLER_Z, incline) * out), "coupler"),
+        _labelled(motor().moved(at(c, 0, s * p.MOTOR_FACE_Z, incline) * into), "motor"),
     ])
 
 
@@ -243,6 +273,7 @@ GROUPS: dict[str, Callable[..., Compound]] = {
     "pillow_blocks": pillow_blocks_group,
     "bearings": bearings_group,
     "spacers": spacers_group,
+    "drive": drive_group,
 }
 
 # Fixed colour per group, so a group keeps its colour between runs.
@@ -256,6 +287,7 @@ COLOURS: dict[str, str] = {
     "pillow_blocks": "#6b5fb5",   # printed violet
     "bearings": "#c9ccd1",        # bright steel
     "spacers": "#b54f8a",         # printed magenta
+    "drive": "#1f1f24",           # motor black
 }
 
 # Members shown in a colour of their own, and flagged in the report.
@@ -322,8 +354,9 @@ def show_assembly(*names: str, detail: bool = False, incline: float = p.INCLINE)
 
 def report(incline: float = p.INCLINE) -> list[str]:
     """What is in each group, with placeholders flagged, and the bought
-    hardware for the tilt (spec-tilt §6, §7) and the pillow blocks
-    (spec-pillow-blocks §1) -- the project has no BOM."""
+    hardware for the tilt (spec-tilt §6, §7), the pillow blocks
+    (spec-pillow-blocks §1) and the drive (spec-drive §3, §11) -- the
+    project has no BOM."""
     lines = [f"Assembly at incline {incline:g} deg, prop {prop_length(incline):.1f} pin to pin", ""]
     for name, group in assembly(incline=incline).items():
         lines.append(f"{name} ({len(group.children)})")
@@ -339,6 +372,9 @@ def report(incline: float = p.INCLINE) -> list[str]:
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.TILT_HARDWARE]
     lines += ["", "Bought hardware, pillow blocks"]
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.PILLOW_BLOCK_HARDWARE]
+    lines += ["", f"Bought parts, drive ({'+z' if p.DRIVE_SIDE > 0 else '-z'} side)"]
+    head_shaft = (f"8 mm shaft, {p.HEAD_SHAFT_LEN:g} long", 1, "head shaft, cut from stock (cut list)")
+    lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.DRIVE_HARDWARE + (head_shaft,)]
     return lines
 
 

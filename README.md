@@ -58,6 +58,7 @@ python3 assembly.py frame plates    # both, in position
 python3 assembly.py plates --detail
 python3 assembly.py frame plates drivetrain belts slats   # the machine
 python3 assembly.py plates pillow_blocks bearings spacers drivetrain   # the shaft mounts
+python3 assembly.py plates pillow_blocks drivetrain drive              # the motor on the head shaft
 python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
 python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
 python3 assembly.py --incline=55    # the whole machine tilted; INCLINE (40) if not given
@@ -89,7 +90,8 @@ python3 checks.py
 ```
 
 Prints one line per acceptance check from rev B §5, phase 4 §8,
-drivetrain-spec §4.4 and §12 and spec-tilt §8.2, and exits non-zero if any
+drivetrain-spec §4.4 and §12, spec-tilt §8.2, spec-pillow-blocks §5 and
+spec-drive §8, and exits non-zero if any
 fail. It takes about two minutes, most of it the whole-loop clearance sweep,
 which runs at three take-ups and three inclines. It ends with the
 **setting-up table** (spec-tilt §8.3): prop length and exposed rod against
@@ -129,10 +131,15 @@ support), `spacer` (print four, axis vertical) and `bearing_coupon` (print
 first, lip face down like the block; see "Pillow blocks" below). The
 608ZZ bearings are bought and not exported.
 
+The drive adds `motor_bracket` (print one, foot down, no support; see
+"Drive resolutions" for why not face plate down). The motor and coupler are
+bought and not exported.
+
 The frame and shafts are owned or bought hardware, the belt is bought, and
 the bridge plates are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
 with the plate rectangle and hole positions, the tilt's cross-member (2020,
-234) and its prop rod (M8, 136) instead.
+234), its prop rod (M8, 136) and the two shafts (tail 145, head 140)
+instead.
 
 ## The assembly framework (phase 4)
 
@@ -289,6 +296,10 @@ Set by drivetrain-spec §13, all provisional until then:
 | `PB_LIP_HOLE_DIA` | 16.0 | pillow-block test B2 |
 | `PB_FOOT_*`, `PB_BOSS_RADIUS` | 44.0 x 7.0, 15.0 | pillow-block test B3, first block |
 | `SHAFT_END_PLAY`, `SPACER_BORE` | 0.4, 8.3 | step 6, assembly |
+| `PB_OUTBOARD_FACE_Z` as measured, `MOTOR_SHAFT_LEN` and its datum, `MOTOR_PILOT_*`, `COUPLER_ENGAGE`, bore depths and clamping | 5.0, 23.5, 22.0 x 2.0, 10.0 | drive test D1, measure the parts |
+| `BRACKET_PILOT_BORE`, alignment | 22.4 | drive test D2, first bracket |
+| `DRIVE_CURRENT_A` | 1.2 | drive tests D3 (case < 60 °C), D4 (skips before a slat slips) |
+| `DRIVE_PULL_EST_N` | 8.0 | drive test D5, full hopper |
 
 ### Physical calibration, in order
 
@@ -471,7 +482,9 @@ a ceiling for the printed pivots, not a spec datum, and the worst doubled
 case, 195.5 N at 25 degrees, is an M8 pin bearing on 12 mm of printed eye,
 about 2 MPa. The nominal and doubled assertions both pass now, and both
 are ordinary checks. If the frame weighs in well over the 34 N estimate,
-revisit `TILT_MIN` before raising this again.
+revisit `TILT_MIN` before raising this again. The drive (spec-drive §7)
+adds 3.6 N at the head shaft: 112.8 N at 25 degrees, and 225.7 N doubled,
+still under 250.
 
 ### Negative controls
 
@@ -562,6 +575,107 @@ The spec was written against baseline v2, before the tilt.
   end plates at z = +/-40.25, between the rails, where nothing else is
   modelled.
 
+## Drive
+
+`docs/specs/spec-drive.md`. The head shaft is driven directly, no
+reduction, by a NEMA 17 stepper through a 5 x 8 flexible coupler. The motor
+bolts to a printed **motor bracket** standing on the head bridge plate,
+which shares the plate's two drive-side M5 (now M5 x 20). The head shaft is
+cut **140** with its long end to the motor; the tail shaft stays 145. One
+group, `drive` (motor bracket, coupler, motor), frame-fixed, so it ignores
+the take-up.
+
+`DRIVE_SIDE` (+1 = +z) is **open** (spec §10.1). `drive_group` and
+`drivetrain_group` take `drive_side`, and the checks build both sides every
+run, so choosing it later is a one-line change in `params.py`. The stepper
+skips at about 13.3 N of belt pull, against an 8 N estimate, and that is
+meant to protect the slats: tests D3-D5 set the driver current between
+running a full hopper and slipping a slat (spec §9). `python3 assembly.py
+--report` lists the bought parts.
+
+Physical tests, in order: **D1** measure the pillow block, motor and
+coupler; **D2** print the bracket, fit motor and coupler, turn by hand; **D3**
+60 min at 30 rpm, case < 60 °C; **D4** the motor must skip before a held
+cleat moves on the belt; **D5** find the current that runs a full hopper.
+
+## Drive resolutions
+
+The spec was written against baseline v3, before the printed pillow blocks.
+The first three are worth a look before the bracket is printed.
+
+### Stack from the printed pillow block
+
+Spec §4 takes `PILLOW_BLOCK_HALF_W` = 14.0, a bought insert block, and §5
+says a narrower block moves the stack, shaft length included, inboard. The
+printed block's outboard (lip) face is 5.0 past the bearing centre, so
+`PILLOW_BLOCK_HALF_W = PB_OUTBOARD_FACE_Z` and everything moves 9.0 inboard
+(decided 2026-09-26):
+
+| | spec | built |
+|---|---|---|
+| block outer face | 64.0 | 55.0 |
+| coupler, 8-bore end | 66.0 | 57.0 |
+| head shaft end (engagement) | 76.5 (10.5) | 67.5 (10.5) |
+| motor shaft tip (gap) | 81.0 (4.5) | 72.0 (4.5) |
+| face plate, inboard face | 99.5 | 90.5 |
+| motor mounting face | 104.5 | 95.5 |
+| motor back | 144.5, 7.5 past the frame | 135.5, inside the frame's 137 |
+
+The head shaft comes out **140, 5 shorter than the tail's 145**, though §4
+says it "gains length": the old symmetric 145 already reached 72.5, past
+the coupler. The spec's formula gives 139.5 and whole-mm rounding gives
+140, drive end 17.5 past the bearing. The alternative was to keep 145 and
+leave a 7.0 gap to the block. The 140 keeps the spec's 2.0 gap and the
+motor inside the frame.
+
+### Bracket foot
+
+§6 runs the foot from local z = -19.5 to +37.5, "the plate edge". With the
+face plate 9.0 further inboard, both can't hold. The plate edge is the
+reason given for the outboard end, so the foot now runs to the plate edge
+(`BRACKET_FOOT_OUTBOARD` = 46.5), and the 19.5 inboard of the face plate is
+kept. The bounding box is **45 x 72 x 66**, not §8.7's 57 across. Volume
+30.5 cm³, about 39 g, pinned ±3 %.
+
+### Print orientation
+
+§6 fixes "face plate down, foot vertical, all holes vertical", but the foot
+crosses under the face plate: it runs 19.5 inboard of the plate and 41.5
+outboard of it to the M5. So there is material on both sides of the face
+plate's outboard face, and that face can't sit on the bed. No orientation
+has every hole vertical. The bracket prints **foot down**
+(`PRINT_ROT_MOTOR_BRACKET`), with no support. The M5 slots print vertical,
+and the pilot bore and M3 holes print horizontal. The pilot bore is tuned
+on the first print anyway (D2). If it comes out too oval, the alternative is
+to drop the inboard 19.5 of foot and print the face plate's inboard face
+down. The foot would then be an L, and the motor seat would be the top
+surface instead of the bed face.
+
+### Smaller readings
+
+- **Coupler.** Modelled with a blind bore from each end,
+  `COUPLER_BORE_DEPTH` = `COUPLER_ENGAGE_MAX`, so both shafts sit in it
+  without clashing, and the checks assert that they do. The helical cut,
+  the clamping and the motor shaft's D-flat are not modelled. Check 11's
+  "swept cylinder" is the coupler itself: it is a Ø20.0 cylinder and the
+  bores are inside it. Its gap to the pillow block is exactly
+  `COUPLER_BLOCK_GAP`.
+- **Check 13.** The spec's "about 225" at 25 degrees is the motor, 223.4.
+  The bracket's foot, lower on the plate, is nearer, at 198.4. Both are
+  pinned, and T2 holds everything to 4.0.
+- **Check 14.** The drive is a separate weight at the head shaft
+  (`DRIVE_MASS_KG`, `DRIVE_CG_T`), as §7 asks. `prop_force()` applies the
+  total at the combined CG, so doubling its `weight` doubles both terms:
+  225.7 N ≤ 250.
+- **Check 15.** Rather than flipping `DRIVE_SIDE` and re-running, every
+  drive check, the whole-loop sweep and T2 build both sides in one run.
+  The head shaft is turned about x, not y, for -z, so its flat still faces
+  the shaft set's grubs.
+- **M5 x 20.** Foot 6 + plate 9 + T-nut 5 = 20, asserted in `params.py`.
+  The spec says to check this against "the length now used there". The
+  project records no length for the plates' M5, so that comparison is
+  left for assembly.
+
 ## Missing parameters
 
 None. Every dimension needed so far is present in `params.py`. The
@@ -576,7 +690,12 @@ reference slab, the check criteria), plus those its resolutions needed:
 `FOOT_DIA`, `FOOT_WINDOW_W`, `PIN_BLOCK_CHEEK_R` and the knob's scallops.
 The pillow blocks added `BC_POCKET_EDGE` (the spec's "15.0 from one long
 edge"), `PB_SLAT_CLEAR_MIN` (its 5.0 criteria) and the bought-hardware
-table `PILLOW_BLOCK_HARDWARE`.
+table `PILLOW_BLOCK_HARDWARE`. The drive added the values spec-drive gives
+without names: the motor's rated current and step count, the running-torque
+factor, the coupler's bores, torque and mass, the stack's derived z
+positions (`COUPLER_Z`, `MOTOR_FACE_Z`, ...), the bracket's face-plate
+height, M3 hole, fillet and tie slot, the M5 head and T-nut, the check
+clearances, `GRAVITY`, the `TILT_TOTAL_*` combination and `DRIVE_HARDWARE`.
 
 ## Provisional parameters
 

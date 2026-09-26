@@ -44,14 +44,14 @@ def test_cut_list_lists_the_plate():
 
 
 def test_export_writes_every_printed_part():
-    """drivetrain-spec §14.5, spec-tilt §8.4, spec-pillow-blocks §1. Bought parts, the base reference
+    """drivetrain-spec §14.5, spec-tilt §8.4, spec-pillow-blocks §1, spec-drive §8. Bought parts, the base reference
     and reference/ are never written."""
     paths = export_all()
     assert sorted(path.stem for path in paths) == [
         "base_pin_block", "bearing_coupon", "frame_clevis", "guide_coupon", "hinge_block_L", "hinge_block_R",
-        "hinge_bracket_L", "hinge_bracket_R", "knob", "pillow_block", "prop_body", "prop_foot", "ring_coupon",
-        "shaft_set", "slat_cleated", "slat_plain", "spacer",
-    ]   # with the tilt's printed parts, spec-tilt §8.4, and spec-pillow-blocks §1
+        "hinge_bracket_L", "hinge_bracket_R", "knob", "motor_bracket", "pillow_block", "prop_body", "prop_foot",
+        "ring_coupon", "shaft_set", "slat_cleated", "slat_plain", "spacer",
+    ]   # with the tilt's printed parts, spec-tilt §8.4, spec-pillow-blocks §1 and spec-drive §8
     for path in paths:
         assert path.parent.name == "out"
         assert path.stat().st_size > 0

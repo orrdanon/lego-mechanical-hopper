@@ -8,6 +8,7 @@ from build123d import Part, Rot, export_stl
 import params as p
 from parts.coupons import bearing_coupon, guide_coupon, ring_coupon
 from parts.hinge import hinge_block, hinge_bracket
+from parts.motor_bracket import motor_bracket
 from parts.pillow_block import pillow_block
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft_set import shaft_set
@@ -31,8 +32,8 @@ def export_all() -> list[Path]:
     slat variants, the shaft set, the three calibration coupons, the tilt
     mechanism's printed parts (spec-tilt §8.4; R is the machine's +z side,
     the right-hand one looking from tail to head), and the pillow block and
-    spacer (spec-pillow-blocks §1; four of each). Bought parts (shafts,
-    bearings, belts, the cross-member, bolts, nuts, the rod), the base
+    spacer (spec-pillow-blocks §1; four of each), and the motor bracket
+    (spec-drive §8). Bought parts (shafts, bearings, motor, coupler, belts, the cross-member, bolts, nuts, the rod), the base
     reference and reference/ are never written."""
     return [
         export_part(slat(cleated=False), "slat_plain", p.PRINT_ROT_PLAIN),
@@ -52,6 +53,7 @@ def export_all() -> list[Path]:
         export_part(pillow_block(), "pillow_block", p.PRINT_ROT_PILLOW_BLOCK),
         export_part(spacer(), "spacer", p.PRINT_ROT_SPACER),
         export_part(bearing_coupon(), "bearing_coupon", p.PRINT_ROT_COUPON),
+        export_part(motor_bracket(), "motor_bracket", p.PRINT_ROT_MOTOR_BRACKET),
     ]
 
 
