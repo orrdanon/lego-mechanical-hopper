@@ -69,7 +69,7 @@ tilt spec the adjustable incline (hinge, cross-member, screw prop). Phase
   nut window, and `PROP_FORCE_MAX` raised 150 -> 250 so the spec's
   doubled-weight force guard, which its own 150 N limit could not meet,
   passes (no XFAIL is live).
-  `docs/design-baseline-v2.md` predates the tilt and does not describe it.
+  `docs/design-baseline-v3.md` describes the machine with the tilt.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   `SHAFT_HEIGHT_ABOVE_PLATE` (measurement, rev B §8), and the whole
   of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
@@ -82,8 +82,9 @@ update once the migration is done.
 ## Repo layout
 
 ```
-docs/design-baseline-v2.md  self-contained as-built summary for external spec writers (current);
+docs/design-baseline-v3.md  self-contained as-built summary for external spec writers (current, includes the tilt);
                           derived from params.py -- regenerate its numbers when params change
+docs/design-baseline-v2.md  the same at commit ad71c0e, the input to the tilt spec; frozen, superseded by v3
 docs/design-baseline-v1.md  the same at commit 98f4fb1, the input to the drivetrain spec; frozen, superseded by v2
 docs/specs/               the phase specs
   phase1-cad-spec.md        rev A spec (superseded, kept as base document)
