@@ -149,7 +149,7 @@ The frame and shafts are owned or bought hardware, the belt and brushes are
 bought, and the bridge plates and the hopper's panels and walls are cut from
 plywood, so none is exported as STL. `python3 cut_list.py` writes
 `out/cut_list.txt` with the plate rectangle and hole positions, the tilt's
-cross-member (2020, 234), its prop rod (M8, 136), the two shafts (tail 145,
+cross-member (2020, 234), its prop rod (M8, 128), the two shafts (tail 145,
 head 140) and the hopper's four boards as corner and hole coordinates
 instead.
 
@@ -443,7 +443,7 @@ exactly where it did.
 To set an angle on the real machine: slacken the lock nut, turn the knob
 until the bare rod between the knob's jam nut and the lock nut measures the
 "exposed rod" figure from the table `checks.py` prints, then run the lock nut
-back up against the prop body. About 45 turns cover the range.
+back up against the prop body. About 52 turns cover the range.
 
 The base is **open**; so are the fasteners of the hinge blocks and the pin
 block. `TILT_WEIGHT_N` is an estimate until the frame is weighed. The
@@ -508,7 +508,36 @@ about 2 MPa. The nominal and doubled assertions both pass now, and both
 are ordinary checks. If the frame weighs in well over the 34 N estimate,
 revisit `TILT_MIN` before raising this again. The drive (spec-drive §7)
 adds 3.6 N at the head shaft: 112.8 N at 25 degrees, and 225.7 N doubled,
-still under 250.
+still under 250. The hopper then used up the rest, and pin B moved to 140:
+see "Pin B at 140".
+
+### Pin B at 140
+
+With the drive and the hopper (see "Hopper and drive together") the doubled
+prop force at 25 degrees reached 249.96 N of the 250 N ceiling. The force is
+the loads' moment about the hinge over the prop's arm about it, and at 25
+degrees, with pin B at 125, the prop leaned 52 degrees from vertical and its
+arm was 81. **`PROP_PIN_B_X` moved to 140** (2026-09-27): the prop stands
+more upright, the arm grows to 97, and the doubled force with a full hopper
+drops to 209.7 N (frame and drive alone: 189.3, was 225.7).
+
+It costs stroke and budget. The prop now runs 152.6 .. 217.9 pin to pin, a
+65.2 stroke (was 56.4), about 52 knob turns (was 45). The screw prop's stroke
+can be at most its body less 22 (captured nut, engagement, bore stop), and
+its shortest length must leave the foot and stack (57.6) under the body, so
+the rod's window shrinks: with the old 90 body it would be 2.8 wide.
+**`PROP_BODY_LEN` went 90 -> 92** to widen it, and **`ROD_LEN` 136 -> 128**,
+mid-window of 125.9 .. 130.6: cut the rod to +/-2. The stack on the foot now
+has 3.0 spare at 25 degrees (was 16.5). Past about 145 the two conditions
+cannot both hold with this prop; a bigger move would need a new prop design.
+
+What was checked, not assumed: the prop still leaves pin A on the clevis's
+open side, now 17 .. 27 degrees below the run (was 13 .. 23), and T7 and T8
+pass; the body clears the rail underside plane by 3.9 / 5.1 / 5.5 (was 3.4 /
+4.4 / 4.9); the pin block, 15 further headward, still clears the base and
+everything that tilts; the T7 control at 300 is unchanged. The setting-up
+table and every pinned prop number in the checks moved with it.
+`docs/design-baseline-v4.md` still shows pin B at 125.
 
 ### Negative controls
 
@@ -527,7 +556,7 @@ still under 250.
   `CLEVIS_SIDE_CLEAR` = 0.3 the eyes run at. That covers the base, the
   cheeks and the head wall at once. The body clears the cheek noses by 0.9.
 - **T7's plane distance** is measured on the prop body with everything
-  inside the clevis's extent along the run cut away: 3.4 / 4.4 / 4.9 at
+  inside the clevis's extent along the run cut away: 3.9 / 5.1 / 5.5 at
   25 / 40 / 55 degrees.
 - **Hinge bracket.** "Its lowest point is 8.0 above the base" is the boss.
   The plate's tail bottom corner is the rail's own corner and rides with it,
@@ -690,7 +719,8 @@ surface instead of the bed face.
 - **Check 14.** The drive is a separate weight at the head shaft
   (`DRIVE_MASS_KG`, `DRIVE_CG_T`), as §7 asks: `drive_load()`, one entry of
   `prop_force()`'s default `machine_loads()` beside the frame's since the
-  hopper made it a list, and `doubled()` doubles both: 225.7 N ≤ 250.
+  hopper made it a list, and `doubled()` doubles both: 225.7 N ≤ 250 with
+  pin B at 125, 189.3 N since it moved to 140.
 - **Check 15.** Rather than flipping `DRIVE_SIDE` and re-running, every
   drive check, the whole-loop sweep and T2 build both sides in one run.
   The head shaft is turned about x, not y, for -z, so its flat still faces
@@ -725,15 +755,15 @@ hopper, from `checks.py`'s table:
 
 | Incline | Level fill | Rim over base, front / back | Prop, empty / full / doubled |
 |---|---|---|---|
-| 25° | 2.04 L | 277 / 309 | 120 / 125 / 250.0 N |
-| 40° | 2.40 L | 289 / 289 | 68 / 66 / 132 N |
-| 55° | 1.87 L | 282 / 250 | 39 / 34 / 68 N |
+| 25° | 2.04 L | 277 / 309 | 101 / 105 / 210 N |
+| 40° | 2.40 L | 289 / 289 | 59 / 57 / 114 N |
+| 55° | 1.87 L | 282 / 250 | 35 / 30 / 60 N |
 
 The prop forces include the frame estimate and the drive. The hopper weighs
 0.95 kg (solid PETG, 0.60 g/cm³ plywood, two brushes and 60 g of hardware),
 close to the spec's 1.0 kg ceiling. **Doubled, the prop force at 25° is
-249.96 N against the 250 N `PROP_FORCE_MAX`**: see "Hopper and drive
-together" below.
+209.7 N, 40.3 N under `PROP_FORCE_MAX`**, with pin B moved to 140 for it:
+see "Hopper and drive together" below and "Pin B at 140".
 
 `--report` lists the hopper's bought hardware (`params.HOPPER_HARDWARE`);
 the brushes are the only bought parts modelled as solids. The physical tests
@@ -799,12 +829,14 @@ The hopper spec was written against baseline v3, before the drive, and
 worked out that its doubled load at 25° left about 30 N under the ceiling:
 "roughly 300 g of motor and mount before the ceiling is reached". The drive
 spec, written against the same baseline, spent it: its 0.37 kg at the head
-shaft adds 30.2 N doubled at 25°. Built together, D2 passes by **0.04 N**
-(249.96 N), so the check holds but has no margin. Anything that adds weight
-ahead of the hinge, or a frame that weighs in over its 34 N estimate, will
-fail it. The spec's own options stand: raise `TILT_MIN` above 25°, move pin
-A, or lift `PROP_FORCE_MAX` with a stronger printed eye. Weighing the frame
-and a litre of parts (`TILT_WEIGHT_N`, `LOAD_BULK_DENSITY`) comes first.
+shaft adds 30.2 N doubled at 25°. Built together with pin B at 125, D2
+passed by 0.04 N (249.96 N). Of the spec's options -- raise `TILT_MIN`,
+move a pin, or lift `PROP_FORCE_MAX` with a stronger printed eye -- pin B
+moved (2026-09-27, "Pin B at 140"): D2 is now 209.7 N, 40.3 N under the
+ceiling. Moving pin A headward, the spec's suggestion, makes it worse: the
+prop leans further from the frame's normal and its arm about the hinge
+shrinks. Weighing the frame and a litre of parts (`TILT_WEIGHT_N`,
+`LOAD_BULK_DENSITY`) is still the real test of that margin.
 
 ### Smaller readings
 

@@ -115,10 +115,11 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   to bolt to, the two panels differing in their cleat holes, and the
   smaller readings (A2's gap limit follows the take-up spread, distance
   checks run with the run along x, C5's cleat sweep only above the slat
-  top, C7 against the real pillow blocks). The hopper weighs 0.95 kg; with
-  the drive, the doubled prop force at 25 deg is 249.96 N against the 250 N
-  `PROP_FORCE_MAX` -- README "Hopper and drive together". No baseline
-  describes the hopper yet.
+  top, C7 against the real pillow blocks). The hopper weighs 0.95 kg. With
+  the drive it left no margin under `PROP_FORCE_MAX`, so pin B moved 125 ->
+  140 (body 90 -> 92, rod 136 -> 128): the doubled force at 25 deg is now
+  209.7 N -- README "Pin B at 140". No baseline describes the drive, the
+  hopper or the moved pin B yet; `design-baseline-v4.md` predates all three.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), the drive tests D1-D5 and `DRIVE_SIDE`, and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,

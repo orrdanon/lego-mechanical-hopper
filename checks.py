@@ -502,19 +502,19 @@ def _check_prop_swing():
 
 
 def _check_prop_length_table():
-    for incline, length, lean in zip(p.TILT_CHECK_ANGLES, (164.1, 189.6, 220.5), (51.8, 30.2, 12.3)):
+    for incline, length, lean in zip(p.TILT_CHECK_ANGLES, (152.6, 182.6, 217.9), (48.4, 26.1, 8.4)):   # pin B at 140, README
         assert abs(g.prop_length(incline) - length) < 0.5
         assert abs(g.prop_length(incline) - p.prop_length_at(incline)) < 1e-9
         assert abs(g.prop_lean(incline) - lean) < 1.0
         assert abs(g.incline_for_length(g.prop_length(incline)) - incline) < 0.05
     assert all(g.prop_length(a) < g.prop_length(b) for a, b in zip(_TILT_GRID, _TILT_GRID[1:]))
-    assert abs(g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) - 56.4) < 0.1
-    assert abs(g.prop_turns(p.TILT_MAX) - 45.0) < 0.5
+    assert abs(g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) - 65.2) < 0.1
+    assert abs(g.prop_turns(p.TILT_MAX) - 52.2) < 0.5
 
 
 def _check_length_budget():
     assert all(margin >= 0 for margin in p.prop_budget())
-    assert abs(p.prop_budget()[2] - 16.5) < 0.1
+    assert abs(p.prop_budget()[2] - 3.0) < 0.1
     engaged, clear_of_pin_a, stack = p.prop_budget(rod_len=160.0)   # control
     assert clear_of_pin_a < -1.0 and engaged >= 0 and stack >= 0
     assert abs(p.FOOT_STACK - 29.6) < 1e-9
@@ -528,7 +528,7 @@ def _check_prop_force():
     frame alone gave spec-tilt's 98 / 58 / 37."""
     for incline in _TILT_GRID:
         assert 0 < g.prop_force(incline) < p.PROP_FORCE_MAX
-    for incline, force in zip(p.TILT_CHECK_ANGLES, (112.8, 67.0, 41.8)):
+    for incline, force in zip(p.TILT_CHECK_ANGLES, (94.7, 57.9, 37.0)):
         assert abs(g.prop_force(incline) - force) < 1.0
 
 
@@ -538,7 +538,7 @@ def _check_prop_force_doubled():
     "Prop force at doubled weight"."""
     worst = max(g.prop_force(incline, g.doubled(g.machine_loads())) for incline in _TILT_GRID)
     assert worst <= p.PROP_FORCE_MAX, f"{worst:.0f} N"
-    assert abs(worst - 225.7) < 0.5, f"{worst:.1f} N"
+    assert abs(worst - 189.3) < 0.5, f"{worst:.1f} N"
 
 
 def _check_tilt_parts():

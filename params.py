@@ -329,9 +329,9 @@ assert CLEVIS_WINDOW_Z > M8_PIN_BOLT_LEN - (CLEVIS_GAP / 2 + CLEVIS_CHEEK_THK), 
 assert CLEVIS_BOLT_Z - M5_CBORE_DIA / 2 > CLEVIS_WINDOW_Z, "clevis fixing bolt breaks into the pin A window"
 
 # Prop -- spec-tilt §5
-PROP_PIN_B_X = 125.0              # mm -- PROVISIONAL, horizontal from the hinge axis
+PROP_PIN_B_X = 140.0              # mm -- PROVISIONAL, horizontal from the hinge axis; was 125, moved for the prop force with the hopper -- README "Pin B at 140"
 PROP_PIN_B_Y = 15.0               # mm -- PROVISIONAL, above the base
-PROP_BODY_LEN = 90.0              # mm -- PROVISIONAL, pin A to the body's bottom face
+PROP_BODY_LEN = 92.0              # mm -- PROVISIONAL, pin A to the body's bottom face; was 90, widens the rod window at pin B 140
 PROP_BODY_DIA = 18.0              # mm -- PROVISIONAL
 PROP_EYE_HOLE = 8.4               # mm -- PROVISIONAL, body and foot
 PROP_EYE_LEN = 12.0               # mm -- PROVISIONAL, pin A to where the flat eye becomes the round body
@@ -348,7 +348,7 @@ FOOT_WALL_THK = 5.0               # mm -- PROVISIONAL, takes the prop's thrust
 FOOT_WALL_HOLE = 8.6              # mm -- PROVISIONAL, also the knob's rod hole
 FOOT_WINDOW_W = 14.0              # mm -- PROVISIONAL, side window to fit and jam the nuts -- README "Prop foot"
 ROD_BOTTOM_Z = 10.0               # mm -- PROVISIONAL, rod end above pin B
-ROD_LEN = 136.0                   # mm -- PROVISIONAL, mid-window of the length budget below
+ROD_LEN = 128.0                   # mm -- PROVISIONAL, mid-window of the length budget below (125.9 .. 130.6)
 KNOB_DIA = 40.0                   # mm -- PROVISIONAL
 KNOB_THK = 12.0                   # mm -- PROVISIONAL
 KNOB_LOBES = 8                    # count -- PROVISIONAL

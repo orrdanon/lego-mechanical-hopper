@@ -472,21 +472,21 @@ def test_mass_properties_of_two_boxes():
 
 
 def test_d2_doubled_load_is_under_the_ceiling():
-    """Frame, drive, hopper and a full load, doubled. The hopper spec left
-    about 30 N at 25 deg for a motor; the drive takes 30.2 of it, so the
-    margin is 0.04 N -- README "Hopper and drive together"."""
+    """Frame, drive, hopper and a full load, doubled. With pin B at 125 the
+    drive took the 30 N the hopper spec left for a motor and D2 passed by
+    0.04 N; pin B at 140 gives 40 N back -- README "Pin B at 140"."""
     forces = [g.prop_force(a, g.doubled(prop_loads(a))) for a in GRID]
     assert max(forces) <= p.PROP_FORCE_MAX
-    assert forces[0] == max(forces) == approx(250.0, abs=0.1)
-    assert g.prop_force(p.TILT_MIN, g.doubled([g.drive_load()])) == approx(30.2, abs=0.1)
+    assert forces[0] == max(forces) == approx(209.7, abs=0.1)
+    assert p.PROP_FORCE_MAX - forces[0] == approx(40.3, abs=0.1)
 
 
 def test_d2_the_load_helps_at_steep_angles():
     """The load's centroid is behind the hinge's line of action at 55. The
-    spec's 98 -> 110 N at 25 and about 29 N at 55 were before the drive;
-    with it, 112.8 -> 125.0 and 33.9."""
-    assert g.prop_force(p.TILT_MIN, prop_loads(p.TILT_MIN)) == approx(125.0, abs=1.0)
-    assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) == approx(33.9, abs=1.0)
+    spec's 98 -> 110 N at 25 and about 29 N at 55 were before the drive and
+    before pin B moved; now 94.7 -> 104.8 and 30.0."""
+    assert g.prop_force(p.TILT_MIN, prop_loads(p.TILT_MIN)) == approx(104.8, abs=1.0)
+    assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) == approx(30.0, abs=1.0)
     assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) < g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX, False))
 
 
