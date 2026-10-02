@@ -9,7 +9,8 @@ plates as its first two groups, and the drivetrain spec the tooth profile,
 shaft sets, shafts, belts and the slats placed round the whole loop, and the
 tilt spec the adjustable incline (hinge, cross-member, screw prop),
 the pillow-block spec the printed bearing housings, bearings and spacers,
-and the drive spec the stepper, coupler and motor bracket on the head shaft.
+the drive spec the stepper, coupler and motor bracket on the head shaft,
+and the hopper spec the hopper, its brushes and a carry rail under it.
 Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
 
 ## Spec authority
@@ -33,6 +34,10 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   Drive: `spec-drive.md` (written against baseline v3, so before the
   printed pillow blocks; its provisional block width is replaced by theirs).
   It lengthens the head shaft's drive end and adds the drive to the tilt load.
+  Hopper: `hopper-spec-v1.md` (written against baseline v3, so before the
+  pillow blocks and the drive; its provisional block envelope is replaced
+  by the real blocks). It changes no built part; it adds the `hopper`
+  group and turns `prop_force()`'s single weight into a list of loads.
 - If a new rev or phase spec file appears, check its own header for what it
   supersedes and diffs against, and treat it the same way.
 
@@ -96,11 +101,32 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   149), the bracket foot to the plate edge (66 across, not 57), and foot-down
   printing because face-plate-down has no flat face. No baseline describes
   the drive yet.
+- **Hopper: done in CAD, nothing printed.** `parts/hopper.py` (side panels,
+  liners, back and front walls, seal and metering clamps, feet, corner
+  cleats, and the cavity reference solid), `parts/carry_rail.py` (rail cut
+  by the shaft set's own `guide_groove_section()`, and its bridge),
+  `parts/brush.py`, the hopper datums in `geometry.py` (`hopper_offset(h)`,
+  the rim line, the back wall plane, the wall slopes, `run_coords()`), the
+  `hopper` group, and `utils.level_fill()` / `mass_properties()`. Everything
+  is built in hopper coordinates (t, h, z), h above the slat top.
+  Resolutions in `README.md` ("Hopper resolutions"): both brush clamps
+  between the liners (75, not 96) and the seal clamp printed on its end, the
+  front wall full width below the flare so its corner cleats have something
+  to bolt to, the two panels differing in their cleat holes, and the
+  smaller readings (A2's gap limit follows the take-up spread, distance
+  checks run with the run along x, C5's cleat sweep only above the slat
+  top, C7 against the real pillow blocks). The hopper weighs 0.95 kg. With
+  the drive it left no margin under `PROP_FORCE_MAX`, so pin B moved 125 ->
+  140 (body 90 -> 92, rod 136 -> 128): the doubled force at 25 deg is now
+  209.7 N -- README "Pin B at 140". No baseline describes the drive, the
+  hopper or the moved pin B yet; `design-baseline-v4.md` predates all three.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), the drive tests D1-D5 and `DRIVE_SIDE`, and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
   guide coupon, first shaft set, set-up, creep test, in that order. README
   "Parameters awaiting physical calibration" lists what each step settles.
+  Then hopper-spec §11 H1-H7; measure the strip brush before printing
+  either clamp, and weigh a litre of parts (`LOAD_BULK_DENSITY`).
 
 If a later phase or revision changes the picture, this list is the thing to
 update once the migration is done.
@@ -126,12 +152,14 @@ docs/specs/               the phase specs
   spec-tilt.md              adjustable incline: hinge, cross-member, clevis, prop, base reference (current)
   spec-pillow-blocks.md     printed pillow blocks, 608ZZ, spacer tubes, bearing coupon (current)
   spec-drive.md             NEMA 17 stepper, flexible coupler, motor bracket, head shaft length (current)
+  hopper-spec-v1.md         the hopper, its brushes, the carry rail and bridge (current)
 reference/                third-party source models, unmodified, never written or imported (CC BY-ND)
 README.md                 setup, usage, and the recorded spec resolutions
 params.py                 single source of truth for every dimension
 geometry.py               pure functions: run direction, shaft axes, at(), loop_at(), radial stations, take-up, plate/frame datums,
-                          and the tilt: hinge_axis(), base_frame(), prop pins, prop_length() and its inverse, prop_force();
-                          slat_lateral_play()
+                          and the tilt: hinge_axis(), base_frame(), prop pins, prop_length() and its inverse,
+                          prop_force(loads) with machine_loads(); slat_lateral_play();
+                          and the hopper: hopper_offset(h), rim_h(), the back wall plane, the wall slopes, run_coords()
 profile.py                2D only: belt tooth (belt model) and the standard pulley groove; pulley_section() is the one source of teeth
 parts/slat.py             the slat part (plain + cleated) with saddle tabs and guide lug, pulley_envelope()
 parts/shaft_set.py        printed: both pulleys + V-grooved guide wheel of one shaft; shaft_set_with() for the groove control
@@ -150,12 +178,17 @@ parts/hinge.py            printed: hinge_bracket(side) on the rail, hinge_block(
 parts/prop.py             printed: frame_clevis, prop_body, prop_foot, knob, base_pin_block
 parts/hardware.py         bought M8 nuts, washer, rod, pin_bolt (reference solids); hex_prism() cuts every hex pocket
 parts/base_ref.py         the base, OPEN: a placeholder slab for clearance checks, never exported
+parts/hopper.py           printed liners, clamps, feet, corner cleat; plywood panels and walls (cut list); hopper_cavity()
+parts/carry_rail.py       printed: carry_rail (the guide wheel's groove run straight) and rail_bridge
+parts/brush.py            bought strip brush: backing and bristles, reference solids
 assembly.py               GROUPS dict of positioned Compounds; `python assembly.py [group ...] [--detail] [--incline=N] [--report]`
-cut_list.py               writes out/cut_list.txt: the plywood parts (end plates with the pillow-block holes), the tilt's cross-member and rod, both shafts
-utils.py                  bbox/volume/contains/clash/distance helpers used by checks & tests
-checks.py                 human-facing runner of every acceptance assertion from the specs
+cut_list.py               writes out/cut_list.txt: the plywood parts (end plates with the pillow-block holes, the hopper's
+                          boards as corner coordinates), the tilt's cross-member and rod, both shafts
+utils.py                  bbox/volume/contains/clash/distance helpers used by checks & tests; level_fill(), mass_properties()
+checks.py                 human-facing runner of every acceptance assertion from the specs; its hopper helpers are imported by tests/
 tests/                    the same assertions as pytest tests
-export.py                 writes out/*.stl: both slats, shaft_set, three coupons, the tilt's nine printed parts, pillow_block, spacer, motor_bracket
+export.py                 writes out/*.stl: both slats, shaft_set, three coupons, the tilt's nine printed parts, pillow_block,
+                          spacer, motor_bracket, and the hopper's nine
 ```
 
 ## Conventions
@@ -189,13 +222,14 @@ export.py                 writes out/*.stl: both slats, shaft_set, three coupons
   `PULLEY_GROOVE_*` catalogue value to make a check or a print fit -- tune
   `FLANK_RADIUS`/`ROOT_RADIUS` (belt model) or the `_COMP` values (printer).
 - **Anything on the base goes at `base_frame(incline)`**; anything on the
-  frame at `at(..., incline=incline)`. Never rotate the base-fixed parts and
+  frame at `at(..., incline=incline)`, and anything given as a height above
+  the slat top at `at(t, hopper_offset(h), ...)`. Never rotate the base-fixed parts and
   never move the machine origin: `incline` tilts the conveyor about the
   tail shaft axis (spec-tilt §2.1).
 - **Adding a part to the machine** means one `<name>_group(detail, takeup, incline)`
   function in `assembly.py` returning a positioned Compound, one `GROUPS`
   entry and one `COLOURS` entry. Nothing else should need touching.
-- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2; spec-pillow-blocks §5; spec-drive §8) are the contract:
+- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2; spec-pillow-blocks §5; spec-drive §8; hopper-spec §8) are the contract:
   they're expressed both as `checks.py` (human-facing pass/fail output)
   and as the `tests/` pytest suite. Keep both in sync with whichever spec
   revision is current.
@@ -213,8 +247,8 @@ export.py                 writes out/*.stl: both slats, shaft_set, three coupons
 
 ```bash
 source .venv/bin/activate   # or create one per README.md
-python3 checks.py              # pass/fail per acceptance check, then the tilt setting-up table, ~2min (the whole-loop clash sweep, 3 take-ups x 3 inclines)
-python -m pytest                # same assertions, pytest form, ~5min
+python3 checks.py              # pass/fail per acceptance check, then the tilt setting-up table and the hopper table, ~4min (the whole-loop clash sweep, 3 take-ups x 3 inclines)
+python -m pytest                # same assertions, pytest form, ~6min
 python3 export.py              # writes out/*.stl (gitignored)
 python3 cut_list.py            # writes out/cut_list.txt for the plywood parts
 python3 parts/slat.py          # opens one part in OCP CAD Viewer if running
@@ -236,7 +270,9 @@ angle scale. The take-up mechanism must stay out of the hinge's space
 (rail outer faces t = -60..-20 and outboard).
 
 Per rev B §6, phase 4 §1 and drivetrain-spec §1, §15: the tail take-up
-jacking screw, side skirts and posts, hopper, brush mounts. Per spec-drive
+jacking screw, side skirts and posts. The hopper is built; the skirt spec starts at its
+front wall's outer face (t = 136) with the same inset, gap and height, and
+needs no posts on the plate at 88.5, which the rail bridge now uses. Per spec-drive
 §10: the driver's wiring and supply, the controller, and a coupler cover. Their parameters may exist in `params.py` for later phases to
 reference, but don't build the parts themselves until their phase. The
 skirts no longer guide anything; when specified, their gap can open to 2.0.

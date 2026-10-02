@@ -81,10 +81,12 @@ def _pulley(sign: int) -> Part:
     return pulley if sign > 0 else pulley.mirror(Plane.XY)
 
 
-def guide_groove(flank_clear: float = p.GROOVE_FLANK_CLEAR, tip_clear: float = p.GROOVE_TIP_CLEAR) -> Part:
-    """The V-groove's cutter (drivetrain-spec §5.5): the lug's cross-section
-    offset outward by `flank_clear` normal to each flank and deepened by
-    `tip_clear`, revolved about the axis. It overshoots the rim."""
+def guide_groove_section(flank_clear: float = p.GROOVE_FLANK_CLEAR, tip_clear: float = p.GROOVE_TIP_CLEAR) -> list[tuple[float, float]]:
+    """The V-groove's (r, z) outline (drivetrain-spec §5.5): the lug's
+    cross-section offset outward by `flank_clear` normal to each flank and
+    deepened by `tip_clear`, up to the belt back, so it overshoots the rim.
+    Revolved it cuts the guide wheel; extruded straight it cuts the carry
+    rail (hopper-spec §3.5), so the two grooves match by construction."""
     half_angle = math.radians(p.LUG_ANGLE / 2)
     bottom = belt_back_radius() - p.LUG_DEPTH - tip_clear
     top = belt_back_radius()
@@ -94,12 +96,17 @@ def guide_groove(flank_clear: float = p.GROOVE_FLANK_CLEAR, tip_clear: float = p
         lug = p.LUG_TIP_WIDTH / 2 + (r - (belt_back_radius() - p.LUG_DEPTH)) * math.tan(half_angle)
         return lug + shift
 
-    return _revolved([
+    return [
         (bottom, -half_width(bottom)),
         (top, -half_width(top)),
         (top, half_width(top)),
         (bottom, half_width(bottom)),
-    ])
+    ]
+
+
+def guide_groove(flank_clear: float = p.GROOVE_FLANK_CLEAR, tip_clear: float = p.GROOVE_TIP_CLEAR) -> Part:
+    """The V-groove's cutter: guide_groove_section() revolved about the axis."""
+    return _revolved(guide_groove_section(flank_clear, tip_clear))
 
 
 def bore(length: float = p.SHAFTSET_LENGTH) -> Part:

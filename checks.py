@@ -5,16 +5,19 @@ expressed as pytest tests under tests/; this is the manual runner."""
 import math
 import sys
 
+from functools import cache
 from itertools import combinations
 
-from build123d import Align, Box, GeomType, Location, Pos
+from build123d import Align, Box, Cylinder, GeomType, Location, Pos, Rot
 
 import geometry as g
 import params as p
+from export import hopper_prints
 from assembly import (
     COLOURS, GROUPS, assembly, bearings_group, belts_group, drive_group, drivetrain_group, frame_group,
     pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group,
     tilt_prop_parts,
+    hopper_cavity_placed, hopper_group, hopper_parts,
 )
 from parts.bearing import bearing
 from parts.belt import belt_band, belt_segment, belt_wrapped
@@ -31,7 +34,7 @@ from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import pulley_envelope, slat
 from parts.spacer import spacer
 from profile import groove_half, groove_junctions, pulley_section, tooth_face, tooth_half
-from utils import _overlap_volume, bbox_size, clash, contains, distance_within, min_distance, volume_cm3
+from utils import _box_gap, _overlap_volume, bbox_size, clash, contains, distance_within, level_fill, mass_properties, min_distance, volume_cm3
 
 
 def _check_parameter_consistency():
@@ -181,7 +184,7 @@ def _check_assembly_framework():
     assert set(assembly("frame").keys()) == {"frame"}
     assert set(COLOURS) == set(GROUPS)
     try:
-        assembly("hopper")
+        assembly("skirts")
     except ValueError:
         pass
     else:
@@ -337,17 +340,17 @@ _TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
 
 def _check_whole_loop_clearances():
     """The expensive one. Real slat geometry, every slat, against every
-    drivetrain part, plate, tilt part, pillow block and spacer, and the
-    drive on either side, across the take-up range and the tilt range
-    (spec-tilt §8.1, which is also its T6; spec-pillow-blocks §4;
-    spec-drive §8.12, §8.15)."""
+    drivetrain part, plate, tilt part, pillow block and spacer, the
+    drive on either side, and every hopper part but the bristles, across
+    the take-up range and the tilt range (spec-tilt §8.1, which is also
+    its T6; spec-pillow-blocks §4; spec-drive §8.12, §8.15; hopper-spec C1)."""
     for incline in p.TILT_CHECK_ANGLES:
         for takeup in _TAKEUPS:
             fixed = [
                 part
                 for group in (drivetrain_group, plates_group, tilt_group, pillow_blocks_group, spacers_group)
                 for part in group(takeup=takeup, incline=incline).children
-            ] + _drive_parts(takeup, incline)
+            ] + _drive_parts(takeup, incline) + hopper_fixed(incline)
             for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
                 for part in fixed:
                     assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}, incline {incline}"
@@ -499,19 +502,19 @@ def _check_prop_swing():
 
 
 def _check_prop_length_table():
-    for incline, length, lean in zip(p.TILT_CHECK_ANGLES, (164.1, 189.6, 220.5), (51.8, 30.2, 12.3)):
+    for incline, length, lean in zip(p.TILT_CHECK_ANGLES, (152.6, 182.6, 217.9), (48.4, 26.1, 8.4)):   # pin B at 140, README
         assert abs(g.prop_length(incline) - length) < 0.5
         assert abs(g.prop_length(incline) - p.prop_length_at(incline)) < 1e-9
         assert abs(g.prop_lean(incline) - lean) < 1.0
         assert abs(g.incline_for_length(g.prop_length(incline)) - incline) < 0.05
     assert all(g.prop_length(a) < g.prop_length(b) for a, b in zip(_TILT_GRID, _TILT_GRID[1:]))
-    assert abs(g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) - 56.4) < 0.1
-    assert abs(g.prop_turns(p.TILT_MAX) - 45.0) < 0.5
+    assert abs(g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) - 65.2) < 0.1
+    assert abs(g.prop_turns(p.TILT_MAX) - 52.2) < 0.5
 
 
 def _check_length_budget():
     assert all(margin >= 0 for margin in p.prop_budget())
-    assert abs(p.prop_budget()[2] - 16.5) < 0.1
+    assert abs(p.prop_budget()[2] - 3.0) < 0.1
     engaged, clear_of_pin_a, stack = p.prop_budget(rod_len=160.0)   # control
     assert clear_of_pin_a < -1.0 and engaged >= 0 and stack >= 0
     assert abs(p.FOOT_STACK - 29.6) < 1e-9
@@ -525,7 +528,7 @@ def _check_prop_force():
     frame alone gave spec-tilt's 98 / 58 / 37."""
     for incline in _TILT_GRID:
         assert 0 < g.prop_force(incline) < p.PROP_FORCE_MAX
-    for incline, force in zip(p.TILT_CHECK_ANGLES, (112.8, 67.0, 41.8)):
+    for incline, force in zip(p.TILT_CHECK_ANGLES, (94.7, 57.9, 37.0)):
         assert abs(g.prop_force(incline) - force) < 1.0
 
 
@@ -533,9 +536,9 @@ def _check_prop_force_doubled():
     """The guard on the weight estimate, frame and drive together
     (spec-drive §8.14): PROP_FORCE_MAX was set so this passes. See README.md
     "Prop force at doubled weight"."""
-    worst = max(g.prop_force(incline, 2 * p.TILT_TOTAL_WEIGHT_N) for incline in _TILT_GRID)
+    worst = max(g.prop_force(incline, g.doubled(g.machine_loads())) for incline in _TILT_GRID)
     assert worst <= p.PROP_FORCE_MAX, f"{worst:.0f} N"
-    assert abs(worst - 225.7) < 0.5, f"{worst:.1f} N"
+    assert abs(worst - 189.3) < 0.5, f"{worst:.1f} N"
 
 
 def _check_tilt_parts():
@@ -842,6 +845,419 @@ def tilt_report() -> list[str]:
     return lines
 
 
+# --- Hopper -- hopper-spec-v1.md §8 ---------------------------------------------------
+# The slats and everything on the frame turn together, so a distance between
+# them does not depend on the incline. Those are measured with the run laid
+# along x (incline 0), where bounding boxes are tight and the sweeps cheap;
+# the no-clash sweep above, and everything against the base, the hinge and
+# the prop, runs at all nine cases -- README "Hopper checks".
+
+_RUN = 0.0   # deg, lays the run along machine x; a frame of reference, not a machine setting
+_PHASES = tuple(p.SLAT_PITCH * i / 4 for i in range(4))   # belt positions within one slat pitch
+_HOPPER_GRID = [
+    p.TILT_MIN + p.HOPPER_TABLE_STEP * i for i in range(int((p.TILT_MAX - p.TILT_MIN) / p.HOPPER_TABLE_STEP) + 1)
+]
+PLYWOOD = ("side panel", "back wall", "front wall")   # the hopper members cut from plywood; the rest print in PETG
+
+
+def hopper_fixed(incline: float = p.INCLINE, **kwargs) -> list:
+    """The hopper parts every slat must clear: all but the bristles, which
+    are meant to touch them (C1, C4)."""
+    return [part for part in hopper_parts(incline, **kwargs) if "bristles" not in part.label]
+
+
+def in_hopper(part, incline: float = p.INCLINE):
+    """`part`, placed at `incline`, moved into hopper coordinates (t, h, z)."""
+    return part.moved(g.at(0, g.hopper_offset(0), 0, incline).inverse())
+
+
+def _top_band():
+    """The top of a slat's body, below the edge chamfers, where it is its
+    full SLAT_WIDTH: the same on every slat, cleated or not."""
+    return slat(False) & Pos(0, p.SLAT_THICKNESS, 0) * Box(
+        2 * p.SLAT_WIDTH, p.EDGE_CHAMFER, 2 * p.SLAT_LENGTH, align=(Align.CENTER, Align.MAX, Align.CENTER)
+    )
+
+
+def slat_top_gaps(takeup: float = 0.0, phase: float = 0.0) -> list[tuple[float, float]]:
+    """(t, gap) of neighbouring slats on the carrying side of the loop, from
+    the tail arc to the front wall's outer face: t of the middle of the
+    pair, and the gap between their top bands (A2). `phase` moves the belt
+    on, so a sweep of phases sees every pair at every point of the tail arc."""
+    spread = g.loop_length(takeup) / p.BELT_LOOP_LENGTH
+    t_max = p.HOPPER_FRONT_T + p.WALL_THICKNESS
+    band = _top_band()
+    placed = {}
+    for i in range(p.SLAT_COUNT):
+        loc = g.loop_at(i * p.SLAT_PITCH * spread + phase, takeup, _RUN)
+        t, offset, _ = g.run_coords(loc.position, _RUN)
+        if offset > 0 and -2 * p.SLAT_PITCH < t < t_max + p.SLAT_PITCH:
+            placed[i] = band.moved(loc)
+    gaps = []
+    for i, a in placed.items():
+        b = placed.get((i + 1) % p.SLAT_COUNT)
+        if b is not None:
+            t = g.run_coords((a.center() + b.center()) / 2, _RUN)[0]
+            if t <= t_max:
+                gaps.append((t, a.distance_to(b)))
+    return gaps
+
+
+@cache
+def hopper_slat_clearance(takeup: float = 0.0, shift: float = 0.0) -> tuple[float, str, str]:
+    """(distance, slat, part) of the nearest slat to any hopper part but the
+    bristles, with every slat moved `shift` across the machine (C1). With a
+    shift, the carry rail is left out: it is the guide, and its groove's
+    flank is what stops a slat at slat_lateral_play()."""
+    # The parts move the other way rather than the slats: a slat in a group
+    # is a child of its Compound, and moved() would copy the whole group.
+    parts = [
+        part.moved(Location((0, 0, -shift)))
+        for part in hopper_fixed(_RUN) if not (shift and part.label == "carry rail")
+    ]
+    parts = [(part, part.bounding_box(optimal=False)) for part in parts]
+    slats = [(s, s.bounding_box(optimal=False)) for s in slats_group(detail=True, takeup=takeup, incline=_RUN).children]
+    pairs = sorted(
+        ((_box_gap(slat_box, box), s, part) for s, slat_box in slats for part, box in parts),
+        key=lambda pair: pair[0],
+    )   # nearest boxes first, so the exact distances stop early
+    best = (math.inf, "", "")
+    for apart, s, part in pairs:
+        if apart >= best[0]:
+            break
+        d = s.distance_to(part)
+        if d < best[0]:
+            best = (d, s.label, part.label)
+    return best
+
+
+def slats_over_rail(takeup: float = 0.0, incline: float = p.INCLINE) -> list:
+    """The carrying-run slats whose lugs lie wholly over the carry rail."""
+    over = []
+    for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
+        t, offset, _ = g.run_coords(s.location.position, incline)
+        if offset > 0 and p.RAIL_T0 <= t - p.LUG_LENGTH / 2 and t + p.LUG_LENGTH / 2 <= p.RAIL_T1:
+            over.append(s)
+    return over
+
+
+def contact_faces(s) -> list:
+    """The planar faces of a placed slat on its belt-contact face."""
+    loc = s.location
+    down = -loc.y_axis.direction
+    return [
+        face for face in s.faces()
+        if face.geom_type == GeomType.PLANE and face.normal_at().dot(down) > 1 - 1e-9
+        and abs((face.center() - loc.position).dot(down)) < 1e-6
+    ]
+
+
+@cache
+def hopper_mass() -> tuple[float, float, float]:
+    """(kg, t, offset) of the hopper, its rail and bridge: every solid at its
+    material's density, the brushes as BRUSH_MASS each, and the loose
+    hardware as HOPPER_HARDWARE_MASS at the solids' centre (§7.1, D1)."""
+    parts = hopper_parts(_RUN)
+    solids = [part for part in parts if "brush" not in part.label]
+    densities = [p.PLY_DENSITY if part.label.startswith(PLYWOOD) else p.PETG_DENSITY for part in solids]
+    _, centre = mass_properties(solids, densities)
+    brushes = [(p.BRUSH_MASS, part.center()) for part in parts if part.label.endswith("brush backing")]
+    mass, centre = mass_properties(solids, densities, brushes + [(p.HOPPER_HARDWARE_MASS, centre)])
+    t, offset, _ = g.run_coords(centre, _RUN)
+    return mass, t, offset
+
+
+@cache
+def hopper_fill(incline: float = p.INCLINE, rim_front_h: float = p.RIM_FRONT_H) -> tuple[float, float, float]:
+    """(litres, t, offset) of the level fill at `incline` (§6, B1)."""
+    litres, centroid = level_fill(hopper_cavity_placed(incline, rim_front_h))
+    t, offset, _ = g.run_coords(centroid, incline)
+    return litres, t, offset
+
+
+def prop_loads(incline: float = p.INCLINE, full: bool = True) -> list[tuple[float, float, float]]:
+    """The frame, the drive, the hopper and, if `full`, its level fill of LEGO at
+    LOAD_BULK_DENSITY, as prop_force() loads (§7.3)."""
+    loads = g.machine_loads() + [hopper_mass()]
+    if full:
+        litres, t, offset = hopper_fill(incline)
+        loads.append((litres * p.LOAD_BULK_DENSITY, t, offset))
+    return loads
+
+
+def rim_heights(incline: float = p.INCLINE) -> tuple[float, float]:
+    """Height of the rim above the base top face at the front wall and at
+    the back wall, on their inner faces."""
+    back_h = g.back_wall_rim_h()
+    front = g.at(p.HOPPER_FRONT_T, g.hopper_offset(p.RIM_FRONT_H), incline=incline).position
+    back = g.at(g.back_wall_t(back_h), g.hopper_offset(back_h), incline=incline).position
+    return g.height_above_base(front, incline), g.height_above_base(back, incline)
+
+
+def _hopper_by_label(incline: float = p.INCLINE, **kwargs) -> dict:
+    return _by_label(hopper_parts(incline, **kwargs))
+
+
+def _check_hopper_parameters():
+    """A1, A3's parameters, A6, and the derived values of §3."""
+    assert p.HOPPER_SEAL_T >= p.HOPPER_SEAL_T_MIN
+    assert abs(p.HOPPER_SEAL_T_MIN - (g.tail_shaft_t(p.TAIL_TAKEUP_MIN) + p.SLAT_PITCH + 3.0)) < 1e-9
+    assert abs(p.HOPPER_SEAL_T_MIN - 25.0) < 1e-9 and abs(p.HOPPER_TAIL_KEEPOUT_T - 10.0) < 1e-9
+    assert p.SEAL_ROOT_H - p.CLEAT_HEIGHT >= p.SEAL_CLEAT_CLEAR
+    assert abs(p.SEAL_ROOT_H - 22.148) < 1e-3 and abs(p.SEAL_ROOT_T - 21.530) < 1e-3
+    assert p.RIM_FRONT_H >= p.FLARE_TOP_H + 5.0
+    assert abs(p.FLARE_TOP_H - 98.0) < 1e-9 and abs(p.FRONT_NOTCH_H - 63.0) < 1e-9 and p.BRUSH_LEN == 75.0
+    assert abs(g.hopper_offset(0) - 22.947) < 1e-3
+    assert abs(g.back_wall_t(0) - 19.59) < 0.01 and abs(g.back_wall_t(g.back_wall_rim_h()) - 36.1) < 0.05
+    assert abs(g.back_wall_rim_h() - 188.8) < 0.05
+
+
+def _check_hopper_gap_closure():
+    """A2, and its control: with the seal at t = 0 at the shortest take-up,
+    slats still open on the tail arc would be under it."""
+    for takeup in _TAKEUPS:
+        # Slats spread evenly round a longer loop, so the straight-run gap
+        # grows with the take-up: closed means no wider than that plus the
+        # spec's 0.05 -- README "Hopper resolutions".
+        limit = p.HOPPER_GAP_CLOSED + p.SLAT_PITCH * (g.loop_length(takeup) / p.BELT_LOOP_LENGTH - 1)
+        for phase in _PHASES:
+            for t, width in slat_top_gaps(takeup, phase):
+                if t >= p.HOPPER_SEAL_T:
+                    assert width <= limit, f"{width:.2f} at t {t:.1f}, takeup {takeup}"
+    widest = max(width for phase in _PHASES for t, width in slat_top_gaps(p.TAIL_TAKEUP_MIN, phase) if t >= 0.0)
+    assert widest > p.HOPPER_GAP_OPEN, f"{widest:.2f}"
+
+
+def _check_seal_clamp_height():
+    """A3: the seal clamp's lowest point."""
+    clamp = in_hopper(_hopper_by_label()["seal clamp"])
+    assert clamp.bounding_box().min.Y >= p.CLEAT_HEIGHT + p.SEAL_CLEAT_CLEAR
+    assert abs(clamp.bounding_box().min.Y - p.SEAL_CLAMP_LOW_H) < 1e-6
+
+
+def _check_wall_slopes():
+    """A4, and the slopes' own definitions checked against the solids at 40."""
+    for incline in _HOPPER_GRID:
+        assert g.flare_slope(incline) >= p.FLARE_SLOPE_MIN and g.back_wall_slope(incline) >= p.BACK_WALL_SLOPE_MIN
+    assert abs(min(map(g.flare_slope, _HOPPER_GRID)) - 50.1) < 0.05 and min(map(g.back_wall_slope, _HOPPER_GRID)) == 40.0
+    liner, wall = (_hopper_by_label()[name] for name in ("liner +z", "back wall"))
+    flare = max((face for face in liner.faces() if face.geom_type == GeomType.PLANE), key=lambda face: face.area)
+    assert abs(math.degrees(math.acos(abs(flare.normal_at().Y))) - g.flare_slope()) < 1e-6
+    inner = max((face for face in wall.faces() if face.geom_type == GeomType.PLANE), key=lambda face: face.area)
+    assert abs(math.degrees(math.acos(abs(inner.normal_at().Y))) - g.back_wall_slope()) < 1e-6
+
+
+def rim_edge_angle(incline: float = p.INCLINE) -> float:
+    """Angle from horizontal, deg, of the +z side panel's rim edge (A5)."""
+    panel = _hopper_by_label(incline)["side panel +z"]
+    in_face = [edge for edge in panel.edges().filter_by(GeomType.LINE) if abs((edge @ 1 - edge @ 0).Z) < 1e-6]
+    rim = max(in_face, key=lambda edge: edge.center().Y)
+    d = rim @ 1 - rim @ 0
+    return math.degrees(math.atan2(d.Y, math.hypot(d.X, d.Z)))
+
+
+def _check_rim_is_level():
+    """A5."""
+    assert abs(rim_edge_angle(p.RIM_LEVEL_INCLINE)) < p.RIM_LEVEL_TOL
+    assert abs(abs(rim_edge_angle(p.TILT_MIN)) - (p.RIM_LEVEL_INCLINE - p.TILT_MIN)) < p.RIM_LEVEL_TOL
+
+
+def _check_hopper_parts():
+    """A7, A8."""
+    for part in hopper_group().children:
+        assert part.is_valid and len(part.solids()) == 1, part.label
+    parts = _hopper_by_label()
+    liner = in_hopper(parts["liner +z"])
+    assert all(abs(a - b) < 1.5 for a, b in zip(bbox_size(liner), (110.0, 109.0, 70.0)))
+    assert 35.0 <= volume_cm3(liner) <= 55.0
+    assert abs(volume_cm3(parts["liner -z"]) - volume_cm3(liner)) < 1e-6
+    rail = in_hopper(parts["carry rail"])
+    assert all(abs(a - b) < 0.02 for a, b in zip(bbox_size(rail), (110.0, 15.447, 16.0)))
+    assert 18.0 <= volume_cm3(rail) <= 28.0
+    assert 40.0 <= volume_cm3(parts["rail bridge"]) <= 80.0
+
+
+def _check_capacity():
+    """B1, and B2's control: a rim at 60 holds too little at 55."""
+    for incline in p.TILT_CHECK_ANGLES:
+        assert hopper_fill(incline)[0] >= p.HOPPER_CAPACITY[0], f"{hopper_fill(incline)[0]:.2f} L at {incline}"
+    assert hopper_fill(p.INCLINE)[0] <= p.HOPPER_CAPACITY[1]
+    assert hopper_fill(p.TILT_MAX, p.HOPPER_CONTROL_RIM_H)[0] < p.HOPPER_CAPACITY[0]
+
+
+def _check_hopper_clears_slats():
+    """C1: nearest slat to any hopper part at every take-up, and with the
+    slats pushed across by their play; the tight pair is cleat and liner."""
+    for takeup in _TAKEUPS:
+        d, s, part = hopper_slat_clearance(takeup)
+        assert d >= p.HOPPER_SLAT_CLEAR, f"{s} is {d:.2f} from {part} at takeup {takeup}"
+    for shift in (g.slat_lateral_play(), -g.slat_lateral_play()):
+        d, s, part = hopper_slat_clearance(0.0, shift)
+        assert d >= p.HOPPER_SLAT_CLEAR, f"{s} is {d:.2f} from {part} pushed {shift:+.2f}"
+        assert part.startswith("liner") and abs(d - (p.SKIRT_INSET - p.CLEAT_LENGTH / 2 - g.slat_lateral_play())) < 1e-3
+
+
+def _check_carry_rail():
+    """C2 and C3: lugs run clear in the rail's groove, the contact faces run
+    0.5 over its lands, and a rail 1.0 higher bites into the slats."""
+    for takeup in _TAKEUPS:
+        rail = _hopper_by_label(_RUN)["carry rail"]
+        over = slats_over_rail(takeup, _RUN)
+        assert len(over) >= 5
+        assert not any(clash(s, rail) for s in over)
+    rail = _hopper_by_label()["carry rail"]
+    for s in slats_over_rail():
+        d = min(face.distance_to(rail) for face in contact_faces(s))
+        assert p.RAIL_LAND_GAP[0] <= d <= p.RAIL_LAND_GAP[1], f"{s.label}: {d:.3f}"
+    raised = _hopper_by_label(rail_raise=1.0)["carry rail"]
+    assert any(clash(s, raised, tol=1.0) for s in slats_over_rail())
+
+
+def _check_brushes():
+    """C4: the bristles' tip lines, and the metering clamp's whole range."""
+    parts = _hopper_by_label()
+    for name, want in (("seal", -p.SEAL_BRUSH_INTERFERENCE), ("metering", p.METER_GAP)):
+        bristles = in_hopper(parts[f"{name} brush bristles"])
+        tip = min(bristles.faces().filter_by(GeomType.PLANE), key=lambda face: face.center().Y)
+        assert abs(tip.center().Y - want) < 0.1, name
+    bolts = [
+        g.at(p.HOPPER_FRONT_T, g.hopper_offset(p.METER_BOLT_H), z) * Rot(0, 90, 0) * Cylinder(p.M4_CLEARANCE_DIA / 2 - 0.25, 3 * p.METER_CLAMP_T)
+        for z in p.METER_BOLT_Z
+    ]
+    for setting in (p.METER_GAP_MIN, p.METER_GAP, p.METER_GAP_MAX):
+        clamp = _hopper_by_label(meter_gap=setting)["metering clamp"]
+        assert not any(clash(bolt, clamp) for bolt in bolts), f"bolts outside the slots at {setting}"
+        assert in_hopper(clamp).bounding_box().max.Y >= p.FRONT_NOTCH_H + p.METER_CLAMP_LAP
+    over = _hopper_by_label(meter_gap=p.METER_GAP_MAX + 1.0)["metering clamp"]
+    assert all(clash(bolt, over) for bolt in bolts)
+
+
+def _tail_sweep(takeup: float):
+    """The cleat tips' swept cylinder about the tail axis, as wide as the
+    cleats with their play, and the part of the world it applies to: above
+    the slat top plane and inside that width. Below the plane, inside the
+    loop, no cleat ever goes; the rail and bridge live there, and C1 and C10
+    check them against the real slats -- README "Hopper resolutions" (C5)."""
+    span = p.CLEAT_LENGTH / 2 + g.slat_lateral_play()
+    sweep = Cylinder(g.cleat_corner_radius(), 2 * span).moved(g.at(g.tail_shaft_t(takeup), 0, incline=_RUN))
+    above = Pos(0, g.slat_top_radius(), 0) * Box(
+        3 * p.FRAME_LENGTH, 3 * p.FRAME_LENGTH, 2 * span, align=(Align.CENTER, Align.MIN, Align.CENTER)
+    )
+    return sweep, above
+
+
+def _check_hopper_tail():
+    """C5, C6, C7: the tail shaft set, the cleat sweep, the keep-out, and
+    the pillow blocks, bearings and spacers, at every take-up. C7 names a
+    provisional envelope for the blocks; they are built now, so the check
+    is against the real ones -- README "Hopper resolutions"."""
+    parts = [part for part in hopper_parts(_RUN) if "bristles" not in part.label]
+    for takeup in _TAKEUPS:
+        shaft_set_ = _by_label(drivetrain_group(takeup=takeup, incline=_RUN).children)["tail shaft set"]
+        sweep, above = _tail_sweep(takeup)
+        blocks = [
+            part
+            for group in (pillow_blocks_group, bearings_group, spacers_group)
+            for part in group(takeup=takeup, incline=_RUN).children
+        ]
+        for part in parts:
+            assert distance_within(part, shaft_set_, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, part.label
+            inside = part & above
+            if inside.volume > 0:
+                assert distance_within(inside, sweep, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, part.label
+            assert min_distance(part, blocks, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, part.label
+    for part in hopper_parts(_RUN):
+        assert part.bounding_box().min.X >= p.HOPPER_TAIL_KEEPOUT_T, part.label
+
+
+def _check_hopper_plates():
+    """C8: feet to the plates along the run, panels to the plate tops and
+    to the plates' M5 heads."""
+    parts = _hopper_by_label(_RUN)
+    feet = [part for label, part in parts.items() if label.startswith("hopper foot")]
+    panels = [parts["side panel +z"], parts["side panel -z"]]
+    radius, height = p.PLATE_BOLT_HEAD[0] / 2, p.PLATE_BOLT_HEAD[1]
+    for takeup in _TAKEUPS:
+        plates = plates_group(takeup=takeup, incline=_RUN).children
+        for plate in plates:
+            box = plate.bounding_box()
+            for foot in feet:
+                along = max(box.min.X - foot.bounding_box().max.X, foot.bounding_box().min.X - box.max.X)
+                assert along >= p.HOPPER_CLEAR, f"{foot.label} is {along:.2f} from {plate.label}"
+            t = g.run_coords(box.center(), _RUN)[0]
+            heads = [
+                g.at(t + x, g.plate_top_offset(), z, _RUN) * Rot(-90, 0, 0) * Cylinder(radius, height, align=(Align.CENTER, Align.CENTER, Align.MIN))
+                for x in (-p.PLATE_BOLT_X, p.PLATE_BOLT_X) for z in (-p.PLATE_BOLT_Z, p.PLATE_BOLT_Z)
+            ]
+            for panel in panels:
+                assert distance_within(panel, plate, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR - 1e-6, f"{panel.label} over {plate.label}"
+                assert all(distance_within(panel, head, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR for head in heads)
+
+
+def _check_hopper_tilt():
+    """C9 at all nine cases: the base, the hinge and the prop. The hopper
+    does not move with the take-up, so the three take-ups are one case."""
+    for incline in p.TILT_CHECK_ANGLES:
+        others = tilt_frame_parts(incline) + tilt_base_parts(incline) + tilt_prop_parts(incline)
+        for part in hopper_parts(incline):
+            for other in others:
+                need = p.BASE_CLEARANCE_MIN if other.label == "base_ref" else p.HOPPER_CLEAR
+                assert distance_within(part, other, need) >= need, f"{part.label} / {other.label} at {incline}"
+
+
+def _check_rail_bridge():
+    """C10: the bridge against the returning run, at all nine cases."""
+    for incline in p.TILT_CHECK_ANGLES:
+        bridge = _hopper_by_label(incline)["rail bridge"]
+        for takeup in _TAKEUPS:
+            loop = slats_group(detail=True, takeup=takeup, incline=incline).children + belts_group(incline=incline).children
+            for part in loop:
+                assert distance_within(bridge, part, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, f"{part.label} at {incline}, {takeup}"
+
+
+def _check_print_bed():
+    """C11."""
+    for part, name, rotation in hopper_prints():
+        size = bbox_size(Rot(*rotation) * part)
+        assert all(a <= b for a, b in zip(size, p.PRINT_BED)), f"{name}: {size}"
+
+
+def _check_hopper_loads():
+    """D1, D2, D3."""
+    assert p.HOPPER_MASS_RANGE[0] <= hopper_mass()[0] <= p.HOPPER_MASS_RANGE[1], f"{hopper_mass()[0]:.3f} kg"
+    for incline in _HOPPER_GRID:
+        worst = g.prop_force(incline, g.doubled(prop_loads(incline)))
+        assert worst <= p.PROP_FORCE_MAX, f"{worst:.0f} N doubled at {incline}"
+        for full in (False, True):
+            assert g.prop_force(incline, prop_loads(incline, full)) >= p.PROP_FORCE_MIN, f"at {incline}"
+
+
+def hopper_report() -> list[str]:
+    """The tables hopper-spec §8 asks to be printed: wall slopes (A4),
+    capacity (B1), the prop force with the hopper (D2), and C1's tight pair."""
+    lines = ["", "Hopper: wall slopes from horizontal, level fill, and the prop force with the hopper"]
+    lines.append("  incline   flare   back wall   level fill   load at (t, offset)   rim over base front / back   prop empty / full / doubled")
+    for incline in _HOPPER_GRID:
+        litres, t, offset = hopper_fill(incline)
+        front, back = rim_heights(incline)
+        forces = [g.prop_force(incline, prop_loads(incline, False)), g.prop_force(incline, prop_loads(incline))]
+        forces.append(g.prop_force(incline, g.doubled(prop_loads(incline))))
+        lines.append(
+            f"  {incline:7.1f}   {g.flare_slope(incline):5.1f}   {g.back_wall_slope(incline):9.1f}   {litres:8.2f} L"
+            f"   ({t:5.1f}, {offset:5.1f})        {front:6.1f} / {back:6.1f}             "
+            + " / ".join(f"{force:5.1f}" for force in forces) + " N"
+        )
+    mass, t, offset = hopper_mass()
+    margin = p.PROP_FORCE_MAX - g.prop_force(p.TILT_MIN, g.doubled(prop_loads(p.TILT_MIN)))
+    d, s, part = hopper_slat_clearance(0.0, g.slat_lateral_play())
+    lines += [
+        f"  hopper {mass:.3f} kg at t {t:.1f}, offset {offset:.1f}; LEGO at {p.LOAD_BULK_DENSITY:g} kg/L",
+        f"  margin under PROP_FORCE_MAX, doubled, at {p.TILT_MIN:g} deg: {margin:.2f} N",
+        f"  tightest slat clearance, slats pushed their full play: {d:.2f}, {s} / {part}",
+    ]
+    return lines
+
+
 # Checks known to fail for a recorded reason. A check listed here counts as
 # XFAIL when it fails and as a failure of the run when it unexpectedly
 # passes -- at which point remove it from this table. Empty since
@@ -901,6 +1317,22 @@ _CHECKS = [
     ("drive: coupler clearances", _check_coupler_clearances),
     ("drive: clears belts, shaft sets, blocks, plates", _check_drive_clears_drivetrain),
     ("drive: clears the base", _check_drive_clears_base),
+    ("hopper A1/A3/A6: parameters", _check_hopper_parameters),
+    ("hopper A2: slat gaps closed under the seal", _check_hopper_gap_closure),
+    ("hopper A3: seal clamp above the cleats", _check_seal_clamp_height),
+    ("hopper A4: wall slopes", _check_wall_slopes),
+    ("hopper A5: rim level at 40", _check_rim_is_level),
+    ("hopper A7/A8: parts", _check_hopper_parts),
+    ("hopper B1/B2: capacity", _check_capacity),
+    ("hopper C1: slat clearance", _check_hopper_clears_slats),
+    ("hopper C2/C3: carry rail", _check_carry_rail),
+    ("hopper C4: brushes", _check_brushes),
+    ("hopper C5/C6/C7: tail", _check_hopper_tail),
+    ("hopper C8: plates", _check_hopper_plates),
+    ("hopper C9: base, hinge and prop", _check_hopper_tilt),
+    ("hopper C10: rail bridge", _check_rail_bridge),
+    ("hopper C11: print bed", _check_print_bed),
+    ("hopper D1-D3: loads", _check_hopper_loads),
 ]
 
 
@@ -927,5 +1359,5 @@ def run_checks() -> bool:
 
 if __name__ == "__main__":
     passed = run_checks()
-    print("\n".join(tilt_report()))
+    print("\n".join(tilt_report() + hopper_report()))
     sys.exit(0 if passed else 1)

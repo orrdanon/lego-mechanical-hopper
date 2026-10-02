@@ -6,10 +6,12 @@ from pathlib import Path
 from build123d import Part, Rot, export_stl
 
 import params as p
+from parts.carry_rail import carry_rail, rail_bridge
 from parts.coupons import bearing_coupon, guide_coupon, ring_coupon
 from parts.hinge import hinge_block, hinge_bracket
 from parts.motor_bracket import motor_bracket
 from parts.pillow_block import pillow_block
+from parts.hopper import corner_cleat, hopper_foot, liner, meter_clamp, seal_clamp
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft_set import shaft_set
 from parts.slat import slat
@@ -27,6 +29,23 @@ def export_part(part: Part, name: str, print_rotation: tuple[float, float, float
     return path
 
 
+def hopper_prints() -> list[tuple[Part, str, tuple[float, float, float]]]:
+    """(part, name, print rotation) of every printed hopper part
+    (hopper-spec §9.9). R and L as for the tilt: R is the machine's +z side.
+    Print two of each foot and eight corner cleats."""
+    return [
+        (liner(1), "hopper_liner_R", p.PRINT_ROT_LINER[1]),
+        (liner(-1), "hopper_liner_L", p.PRINT_ROT_LINER[-1]),
+        (seal_clamp(), "seal_clamp", p.PRINT_ROT_SEAL_CLAMP),
+        (meter_clamp(), "metering_clamp", p.PRINT_ROT_METER_CLAMP),
+        (hopper_foot(1), "hopper_foot_R", p.PRINT_ROT_HOPPER_FOOT),
+        (hopper_foot(-1), "hopper_foot_L", p.PRINT_ROT_HOPPER_FOOT),
+        (corner_cleat(), "corner_cleat", p.PRINT_ROT_CORNER_CLEAT),
+        (carry_rail(), "carry_rail", p.PRINT_ROT_CARRY_RAIL),
+        (rail_bridge(), "rail_bridge", p.PRINT_ROT_RAIL_BRIDGE),
+    ]
+
+
 def export_all() -> list[Path]:
     """Export every printed part with its print rotation from params: both
     slat variants, the shaft set, the three calibration coupons, the tilt
@@ -34,7 +53,8 @@ def export_all() -> list[Path]:
     the right-hand one looking from tail to head), and the pillow block and
     spacer (spec-pillow-blocks §1; four of each), and the motor bracket
     (spec-drive §8). Bought parts (shafts, bearings, motor, coupler, belts, the cross-member, bolts, nuts, the rod), the base
-    reference and reference/ are never written."""
+    reference, and the hopper's (hopper_prints()). Plywood, the brushes, the
+    hopper's cavity and reference/ are never written."""
     return [
         export_part(slat(cleated=False), "slat_plain", p.PRINT_ROT_PLAIN),
         export_part(slat(cleated=True), "slat_cleated", p.PRINT_ROT_CLEATED),
@@ -54,7 +74,7 @@ def export_all() -> list[Path]:
         export_part(spacer(), "spacer", p.PRINT_ROT_SPACER),
         export_part(bearing_coupon(), "bearing_coupon", p.PRINT_ROT_COUPON),
         export_part(motor_bracket(), "motor_bracket", p.PRINT_ROT_MOTOR_BRACKET),
-    ]
+    ] + [export_part(*printed) for printed in hopper_prints()]
 
 
 if __name__ == "__main__":

@@ -11,8 +11,9 @@ Implements docs/specs/phase1-cad-spec.md through -revD.md, the parameter
 tables of phase3-cad-spec-revB.md renumbered for the rev D belt, the
 frame/bridge-plate subset of phase2-cad-spec.md needed by phase4-cad-spec.md,
 docs/specs/drivetrain-spec.md rev B §3, which supersedes phase 3's pulley,
-spec-tilt.md, and spec-pillow-blocks.md §2, whose printed pillow block
-fixes `SHAFT_HEIGHT_ABOVE_PLATE`. The belt is the HTD-3M x 15mm x 828mm loop chosen
+spec-tilt.md, spec-pillow-blocks.md §2, whose printed pillow block
+fixes `SHAFT_HEIGHT_ABOVE_PLATE`, spec-drive.md, and hopper-spec-v1.md §3.
+The belt is the HTD-3M x 15mm x 828mm loop chosen
 in rev D; `CENTRE_DIST` follows from it and is no longer an open question.
 """
 
@@ -328,9 +329,9 @@ assert CLEVIS_WINDOW_Z > M8_PIN_BOLT_LEN - (CLEVIS_GAP / 2 + CLEVIS_CHEEK_THK), 
 assert CLEVIS_BOLT_Z - M5_CBORE_DIA / 2 > CLEVIS_WINDOW_Z, "clevis fixing bolt breaks into the pin A window"
 
 # Prop -- spec-tilt §5
-PROP_PIN_B_X = 125.0              # mm -- PROVISIONAL, horizontal from the hinge axis
+PROP_PIN_B_X = 140.0              # mm -- PROVISIONAL, horizontal from the hinge axis; was 125, moved for the prop force with the hopper -- README "Pin B at 140"
 PROP_PIN_B_Y = 15.0               # mm -- PROVISIONAL, above the base
-PROP_BODY_LEN = 90.0              # mm -- PROVISIONAL, pin A to the body's bottom face
+PROP_BODY_LEN = 92.0              # mm -- PROVISIONAL, pin A to the body's bottom face; was 90, widens the rod window at pin B 140
 PROP_BODY_DIA = 18.0              # mm -- PROVISIONAL
 PROP_EYE_HOLE = 8.4               # mm -- PROVISIONAL, body and foot
 PROP_EYE_LEN = 12.0               # mm -- PROVISIONAL, pin A to where the flat eye becomes the round body
@@ -347,7 +348,7 @@ FOOT_WALL_THK = 5.0               # mm -- PROVISIONAL, takes the prop's thrust
 FOOT_WALL_HOLE = 8.6              # mm -- PROVISIONAL, also the knob's rod hole
 FOOT_WINDOW_W = 14.0              # mm -- PROVISIONAL, side window to fit and jam the nuts -- README "Prop foot"
 ROD_BOTTOM_Z = 10.0               # mm -- PROVISIONAL, rod end above pin B
-ROD_LEN = 136.0                   # mm -- PROVISIONAL, mid-window of the length budget below
+ROD_LEN = 128.0                   # mm -- PROVISIONAL, mid-window of the length budget below (125.9 .. 130.6)
 KNOB_DIA = 40.0                   # mm -- PROVISIONAL
 KNOB_THK = 12.0                   # mm -- PROVISIONAL
 KNOB_LOBES = 8                    # count -- PROVISIONAL
@@ -578,6 +579,170 @@ SKIRT_HEIGHT = 28.0    # mm, above slat top
 SKIRT_GAP = 1.5        # mm, skirt bottom to slat top
 SKIRT_INSET = 38.0     # mm, from centreline
 
+# --- Hopper -- hopper-spec-v1.md §3 ----------------------------------------
+# Frame-mounted: every part is placed with at(..., incline=incline) and none
+# on the tail plate, so the take-up does not move it. The spec gives heights
+# as h, above the slat top face; code converts them with
+# geometry.hopper_offset(h), never with the 22.947 literal.
+
+# §3.1 Position along the run. The largest tail_shaft_t() is at
+# TAIL_TAKEUP_MIN (tail_shaft_t = -takeup); params cannot import geometry.
+HOPPER_SEAL_T = 28.0              # mm -- PROVISIONAL, where the seal brush tips touch the slat tops
+HOPPER_SEAL_T_MIN = -TAIL_TAKEUP_MIN + SLAT_PITCH + 3.0   # mm, derived, 25.0, a slat pitch past the tail tangent point, plus 3
+HOPPER_FRONT_T = 130.0            # mm -- PROVISIONAL, front wall inner face
+HOPPER_TAIL_KEEPOUT_T = -TAIL_TAKEUP_MIN + 6.0   # mm, derived, 10.0, no hopper point tailward of this
+assert HOPPER_SEAL_T >= HOPPER_SEAL_T_MIN, "the seal would meet slats whose gaps are still open"
+
+# §3.2 Channel, inherited by name from the skirts
+HOPPER_CHANNEL_W = 2 * SKIRT_INSET   # mm, derived, 76.0
+
+# §3.3 Walls and rim
+LINER_THICKNESS = 3.0             # mm -- PROVISIONAL, printed PETG
+FLARE_ANGLE = 45.0                # deg -- PROVISIONAL, liner flare from the run normal, outward
+HOPPER_HALF_W = 108.0             # mm -- PROVISIONAL, side-panel inner face, +/-z
+FLARE_TOP_H = SKIRT_HEIGHT + (HOPPER_HALF_W - SKIRT_INSET) / math.tan(math.radians(FLARE_ANGLE))   # mm, derived, 98.0
+BACK_WALL_ANGLE = 85.0            # deg -- PROVISIONAL, run (headward) to back wall inner face
+RIM_FRONT_H = 110.0               # mm -- PROVISIONAL, rim height at the front wall
+RIM_LEVEL_INCLINE = INCLINE       # deg -- PROVISIONAL, the rim is horizontal at this incline
+PANEL_THICKNESS = 9.0             # mm -- PROVISIONAL, plywood, as the bridge plates
+WALL_THICKNESS = 6.0              # mm -- PROVISIONAL, plywood, back and front walls
+PANEL_BOTTOM_OFFSET = -45.0       # mm -- PROVISIONAL, an offset, not h: 3.0 above the plate top faces
+PANEL_REAR_T_MIN = 34.0           # mm -- PROVISIONAL, panel stays headward of this below the flare top
+LINER_FLANGE_H = 12.0             # mm, vertical flange against the panel, from FLARE_TOP_H
+LINER_FLANGE_TOP_H = FLARE_TOP_H + LINER_FLANGE_H   # mm, derived, 110.0
+LINER_FLANGE_CHAMFER = 2.0        # mm, 45 deg on the flange's top inner edge, so it is no ledge -- README "Liner"
+LINER_SCREW_T = (40.0, 85.0, 125.0)   # mm -- PROVISIONAL, 3 x M3 wood screws, flange to panel
+LINER_SCREW_H = FLARE_TOP_H + LINER_FLANGE_H / 2   # mm, derived, 104.0
+LINER_RIB_T = (50.0, 110.0)       # mm -- PROVISIONAL, two triangular ribs under the flare
+LINER_RIB_LEG = 20.0              # mm -- PROVISIONAL, each leg, along the panel and the flare
+assert RIM_FRONT_H >= FLARE_TOP_H + 5.0, "rim too close to the flare top"
+assert LINER_FLANGE_TOP_H <= RIM_FRONT_H + 1e-9, "liner flange stands above the rim"
+
+# §3.4 Brushes: bought strip brush (nylon door sweep) cut to length
+BRUSH_BACKING_W = 6.0             # mm -- PROVISIONAL, measure: backing thickness
+BRUSH_BACKING_H = 8.0             # mm -- PROVISIONAL, measure: backing height
+BRUSH_FREE_LEN = 25.0             # mm -- PROVISIONAL, measure: bristle length out of the backing
+BRUSH_BRISTLE_T = 3.0             # mm -- PROVISIONAL, measure: thickness of the bristle tuft, reference solid only
+BRUSH_SIDE_CLEAR = 0.5            # mm, brush end to liner, each side
+BRUSH_LEN = HOPPER_CHANNEL_W - 2 * BRUSH_SIDE_CLEAR   # mm, derived, 75.0
+BRUSH_SLOT_CLEAR = 0.3            # mm, clamp slot over the backing thickness
+SEAL_BRUSH_INTERFERENCE = 2.0     # mm -- PROVISIONAL, undeflected tip below the slat top
+SEAL_BRUSH_RAKE = 15.0            # deg -- PROVISIONAL, from the run normal, tips headward of the root
+SEAL_ROOT_H = BRUSH_FREE_LEN * math.cos(math.radians(SEAL_BRUSH_RAKE)) - SEAL_BRUSH_INTERFERENCE   # mm, derived, 22.148
+SEAL_ROOT_T = HOPPER_SEAL_T - BRUSH_FREE_LEN * math.sin(math.radians(SEAL_BRUSH_RAKE))              # mm, derived, 21.530
+METER_GAP = 14.0                  # mm -- PROVISIONAL, metering brush tip above the slat top
+METER_GAP_MIN = 6.0               # mm -- PROVISIONAL, clamp slot range
+METER_GAP_MAX = 26.0              # mm -- PROVISIONAL
+METER_RAKE = 0.0                  # deg -- PROVISIONAL, bristles along the run normal
+SEAL_CLEAT_CLEAR = 5.0            # mm, least seal brush root and clamp above the cleat tips (A3)
+assert SEAL_ROOT_H >= CLEAT_HEIGHT + SEAL_CLEAT_CLEAR, "seal brush root too close to the cleat tips"
+assert METER_GAP_MIN <= METER_GAP <= METER_GAP_MAX
+
+# The two brush clamps sit between the liners, not 10 beyond the channel
+# each side as the spec has it -- README "Brush clamps".
+HOPPER_CLAMP_LEN = BRUSH_LEN      # mm, derived, 75.0, the brush's own 0.5 to each liner
+BACK_NOTCH_H = SEAL_ROOT_H + BRUSH_BACKING_H + 4.0   # mm, derived, 34.148, back wall's bottom edge over the channel
+SEAL_CLAMP_LOW_H = SEAL_ROOT_H - 1.0   # mm, derived, 21.148, the clamp's lower face (spec §4.4)
+SEAL_CLAMP_FRONT = 8.0            # mm -- PROVISIONAL, headward of the back wall inner face
+SEAL_CLAMP_BACK = 9.0             # mm -- PROVISIONAL, tailward of it, below the notch: 3.0 behind the wall
+SEAL_CLAMP_LAP = 20.0             # mm -- PROVISIONAL, up the wall's inner face above the notch
+SEAL_CLAMP_SCREW_Z = (-25.0, 0.0, 25.0)   # mm -- PROVISIONAL, 3 x M4 through the wall into inserts
+SEAL_CLAMP_GRUB_Z = (-20.0, 20.0)  # mm -- PROVISIONAL, 2 x M3 grub screws onto the backing
+FRONT_NOTCH_H = METER_GAP_MAX + BRUSH_FREE_LEN + BRUSH_BACKING_H + 4.0   # mm, derived, 63.0
+METER_CLAMP_T = 12.0              # mm -- PROVISIONAL, plate thickness along the run, 2.85 each side of the slot
+METER_CLAMP_H = 48.0              # mm -- PROVISIONAL, plate height above the brush root
+METER_CLAMP_LAP = 10.0            # mm, least lap of the plate over the wall above the notch
+METER_BOLT_H = 72.0               # mm -- PROVISIONAL, the two M4 through the front wall, fixed
+METER_BOLT_Z = (-20.0, 20.0)      # mm -- PROVISIONAL
+METER_GRUB_Z = (-20.0, 20.0)      # mm -- PROVISIONAL, 2 x M3 grub screws onto the backing
+assert METER_CLAMP_T >= BRUSH_BACKING_W + BRUSH_SLOT_CLEAR + 3.0, "metering clamp too thin round its slot"
+assert METER_GAP_MIN + BRUSH_FREE_LEN + METER_CLAMP_H >= FRONT_NOTCH_H + METER_CLAMP_LAP, "clamp leaves the notch open at its lowest"
+
+# §3.5 Carrying-run support rail and its bridge
+RAIL_T0 = 30.0                    # mm -- PROVISIONAL
+RAIL_T1 = 140.0                   # mm -- PROVISIONAL, 10 past the front wall
+RAIL_BOTTOM_OFFSET = 4.0          # mm -- PROVISIONAL, an offset, not h
+RAIL_END_CHAMFER = 45.0           # deg, lead-in at both ends, down to the groove bottom
+RAIL_ARM_T_CENTRE = CENTRE_DIST / (PLATE_STATIONS - 1)   # mm, derived, 88.5, plate 1
+RAIL_ARM_LEN = 24.0               # mm -- PROVISIONAL, along the run
+RAIL_ARM_T = (RAIL_ARM_T_CENTRE - RAIL_ARM_LEN / 2, RAIL_ARM_T_CENTRE + RAIL_ARM_LEN / 2)   # mm, derived, 76.5 .. 100.5
+RAIL_ARM_OFFSET = (-12.0, RAIL_BOTTOM_OFFSET)   # mm -- PROVISIONAL, between the runs
+RAIL_ARM_HALF_W = 54.0            # mm -- PROVISIONAL
+RAIL_POST_Z = (44.0, RAIL_ARM_HALF_W)   # mm -- PROVISIONAL, +/-
+RAIL_PAD_Z = 64.0                 # mm -- PROVISIONAL, pads reach outboard of the posts to this
+RAIL_PAD_THK = 5.0                # mm -- PROVISIONAL
+RAIL_PAD_BOLT_Z = 59.0            # mm -- PROVISIONAL, +/-, 2 x M4 per pad through the plate
+RAIL_PAD_BOLT_X = 7.0             # mm -- PROVISIONAL, +/- along the run from the plate centre
+RAIL_INSERT_X = 6.0               # mm -- PROVISIONAL, +/- from the arm centre, 2 x M3 into the rail
+RAIL_ARM_GRIP = 3.0               # mm, arm left under the counterbored M3 heads
+
+# §3.6 Mounting
+HOPPER_FOOT_T = (46.0, 126.0)     # mm -- PROVISIONAL, foot centres
+HOPPER_FOOT_LEN = 24.0            # mm -- PROVISIONAL, along the run
+HOPPER_FOOT_INNER_Z = HOPPER_HALF_W - 3.0   # mm, derived, 105.0, inner cheek 2.8 thick
+HOPPER_FOOT_TOP_OFFSET = -27.0    # mm -- PROVISIONAL
+HOPPER_FOOT_SLOT_W = PANEL_THICKNESS + 0.4   # mm, derived, 9.4
+HOPPER_FOOT_SLOT_DEPTH = HOPPER_FOOT_TOP_OFFSET - PANEL_BOTTOM_OFFSET   # mm, derived, 18.0, the panel stands on its floor
+HOPPER_FOOT_M4_X = 8.5            # mm -- PROVISIONAL, +/- along the run, clear of the M5 counterbore
+HOPPER_FOOT_CBORE_FLOOR = 5.0     # mm, foot left under the M5 head
+HOPPER_CLEAR = 3.0                # mm, every hopper part to the plates, pillow blocks, hinge, prop and tail
+PLATE_BOLT_HEAD = (10.0, 5.0)     # mm, envelope of an M5 head on a plate top: diameter, height
+
+# §4.6 Corner cleats: a 15 x 15 angle, 30 long, joining a panel to a wall.
+# The front pair go under the flare -- README "Front wall".
+CORNER_CLEAT_LEG = 15.0           # mm -- PROVISIONAL
+CORNER_CLEAT_T = 5.0              # mm -- PROVISIONAL, leg thickness
+CORNER_CLEAT_LEN = 30.0           # mm -- PROVISIONAL
+CORNER_CLEAT_FRONT_H = (10.0, 45.0)    # mm -- PROVISIONAL, bottom ends, front wall joints
+CORNER_CLEAT_BACK_H = (118.0, 152.0)   # mm -- PROVISIONAL, bottom ends, back wall joints, above the liner flange
+
+# Hardware sizes
+M4_CLEARANCE_DIA = 4.5            # mm
+M4_INSERT_DEPTH = 6.0             # mm, the shaft set's M4 insert (PULLEY_INSERT_DIA)
+M3_CLEARANCE_DIA = 3.4            # mm
+M3_TAP_DIA = 2.5                  # mm, grub screws tap straight into the print
+M3_CBORE_DIA = 6.0                # mm
+M3_INSERT_DIA = 4.0               # mm
+M3_INSERT_DEPTH = 5.0             # mm
+
+# §3.7 Mass and load
+PLY_DENSITY = 0.60                # g/cm^3 -- PROVISIONAL, weigh a plate offcut
+PETG_DENSITY = 1.27               # g/cm^3, catalogue; infill ignored, which is conservative
+BRUSH_MASS = 0.025                # kg -- PROVISIONAL, each, weigh
+HOPPER_HARDWARE_MASS = 0.060      # kg -- PROVISIONAL
+LOAD_BULK_DENSITY = 0.50          # kg/L -- PROVISIONAL, weigh a level litre of mixed LEGO
+
+# §8 acceptance limits
+HOPPER_GAP_CLOSED = 1.05          # mm, most top-face gap between slats under the hopper (A2)
+HOPPER_GAP_OPEN = 1.5             # mm, some gap must exceed this with the seal at t = 0 (A2's control)
+HOPPER_SLAT_CLEAR = 0.25          # mm, least slat to hopper part (C1)
+RAIL_LAND_GAP = (0.45, 0.55)      # mm, slat contact face to the rail lands (C2)
+FLARE_SLOPE_MIN = 45.0            # deg (A4)
+BACK_WALL_SLOPE_MIN = 35.0        # deg (A4)
+RIM_LEVEL_TOL = 0.1               # deg (A5)
+HOPPER_CAPACITY = (1.50, 2.60)    # L, least at every check angle, most at INCLINE (B1)
+HOPPER_MASS_RANGE = (0.6, 1.0)    # kg (D1)
+PROP_FORCE_MIN = 10.0             # N, the prop stays in compression (D3)
+PRINT_BED = (220.0, 220.0, 250.0)   # mm -- PROVISIONAL, x, y, z (C11)
+HOPPER_TABLE_STEP = 2.5           # deg, the slope, capacity and prop force tables' rows (A4, B1, D2)
+HOPPER_CONTROL_RIM_H = 60.0       # mm, a rim too low, for B2's control; below what RIM_FRONT_H may be
+
+# Bought hardware for the hopper, (item, quantity, use) -- hopper-spec §4.8
+HOPPER_HARDWARE = (
+    (f"Strip brush, cut to {BRUSH_LEN:g}", 2, "seal and metering (nylon door sweep)"),
+    ("M5 x 12 + T-nut", 4, "hopper feet into the rails' top slots"),
+    ("M4 x 40 + nylock + 2 washers", 8, "feet, through the slot cheeks and the side panel (grip 32)"),
+    ("M4 x 25 + nylock + 2 washers", 16, "corner cleats, one per leg (grip 11 on a wall, 14 on a panel)"),
+    ("M4 x 25 + nylock + 2 washers", 4, "rail bridge pads, through the plate at 88.5 (grip 14)"),
+    ("M4 x 12 + washer", 3, "seal clamp, through the back wall into the inserts; longer comes out of the clamp"),
+    ("M4 heat-set insert", 3, "seal clamp"),
+    ("M4 x 30 + 2 washers + wing nut", 2, "metering clamp, through the front wall and its slots (grip 18)"),
+    ("M3 x 8 socket head", 2, "rail to bridge, from below: 3 of arm, 5 into the insert"),
+    ("M3 heat-set insert", 2, "rail"),
+    ("M3 x 6 grub screw", 4, "brush backings, two per clamp"),
+    ("M3 x 12 wood screw", 6, "liner flanges to the side panels"),
+)
+
 # --- Printing -----------------------------------------------------------------
 
 PRINT_ROT_PLAIN = (180.0, 0.0, 0.0)     # deg, top face down, tabs up
@@ -594,6 +759,13 @@ PRINT_ROT_KNOB = (0.0, 0.0, 0.0)             # deg, flat face down -- native ori
 PRINT_ROT_PILLOW_BLOCK = (180.0, 0.0, 0.0)   # deg, outboard (lip) face down, pocket opening up
 PRINT_ROT_SPACER = (0.0, 0.0, 0.0)           # deg, axis vertical, either end down -- native orientation
 PRINT_ROT_MOTOR_BRACKET = (90.0, 0.0, 0.0)   # deg, foot down: local +y (up) to the bed's +z; spec-drive's face-plate-down is not a flat face, README "Drive resolutions"
+PRINT_ROT_LINER = {1: (180.0, 0.0, 0.0), -1: (0.0, 0.0, 0.0)}   # deg, by side: the flange's outer face down, flare a 45 deg overhang
+PRINT_ROT_SEAL_CLAMP = (0.0, 0.0, 0.0)       # deg, on an end, section flat -- README "Brush clamps"
+PRINT_ROT_METER_CLAMP = (0.0, 90.0, 0.0)     # deg, mating face down; the brush slot bridges
+PRINT_ROT_HOPPER_FOOT = (90.0, 0.0, 0.0)     # deg, bottom face down
+PRINT_ROT_CORNER_CLEAT = (90.0, 0.0, 0.0)    # deg, on an end, the angle section flat
+PRINT_ROT_CARRY_RAIL = (90.0, 0.0, 0.0)      # deg, bottom face down, groove up; 45 deg flanks
+PRINT_ROT_RAIL_BRIDGE = (0.0, 90.0, 0.0)     # deg, headward face down, the section flat
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------
@@ -601,3 +773,4 @@ EDGE_CHAMFER = 0.5    # mm, general outer edges
 # (e.g. selecting edges by position) in part code.
 
 EDGE_MATCH_TOLERANCE = 1e-6   # mm
+CUTTER_OVERSHOOT = 1.0        # mm, how far a cutter runs past the face it opens, so no coplanar skin is left

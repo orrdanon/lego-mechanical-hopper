@@ -6,9 +6,10 @@ phase 4 added the assembly framework with the aluminium frame and the
 plywood bridge plates as its first two groups; the drivetrain spec added
 the tooth profile, the printed shaft sets, shafts, belts and the slats
 running round both ends; the tilt spec made the incline adjustable by hand
-over 25..55 degrees, with a hinge, a cross-member and a screw prop. See the
-`phase*-cad-spec*.md` files, `drivetrain-spec.md` and `spec-tilt.md` in
-`docs/specs/`: each phase depends on the earlier
+over 25..55 degrees, with a hinge, a cross-member and a screw prop; the
+hopper spec added the hopper, its brushes and a carry rail under it. See the
+`phase*-cad-spec*.md` files, `drivetrain-spec.md`, `spec-tilt.md` and
+`hopper-spec-v1.md` in `docs/specs/`: each phase depends on the earlier
 ones, and each rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided, written
@@ -44,8 +45,9 @@ python3 parts/slat.py
 
 This opens the viewer showing a plain slat. `parts/shaft_set.py` (teeth
 and guide groove visible), `parts/shaft.py`, `parts/belt.py`,
-`parts/coupons.py`, `parts/frame.py` and `parts/bridge_plate.py` work the
-same way. Without a running viewer
+`parts/coupons.py`, `parts/frame.py`, `parts/bridge_plate.py`,
+`parts/hopper.py` (liners and walls) and `parts/carry_rail.py` (the rail on
+its bridge) work the same way. Without a running viewer
 server, `ocp_vscode` prints a connection warning but the geometry still
 builds correctly (exit code 0) -- useful for a headless sanity check.
 
@@ -61,6 +63,7 @@ python3 assembly.py plates pillow_blocks bearings spacers drivetrain   # the sha
 python3 assembly.py plates pillow_blocks drivetrain drive              # the motor on the head shaft
 python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
 python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
+python3 assembly.py frame plates slats hopper   # the hopper over the carrying run
 python3 assembly.py --incline=55    # the whole machine tilted; INCLINE (40) if not given
 python3 assembly.py --report        # no viewer: each group's members, and the bought hardware
 ```
@@ -90,12 +93,14 @@ python3 checks.py
 ```
 
 Prints one line per acceptance check from rev B §5, phase 4 §8,
-drivetrain-spec §4.4 and §12, spec-tilt §8.2, spec-pillow-blocks §5 and
-spec-drive §8, and exits non-zero if any
-fail. It takes about two minutes, most of it the whole-loop clearance sweep,
+drivetrain-spec §4.4 and §12, spec-tilt §8.2, spec-pillow-blocks §5,
+spec-drive §8 and hopper-spec §8, and exits non-zero if any
+fail. It takes about four minutes, most of it the whole-loop clearance sweep,
 which runs at three take-ups and three inclines. It ends with the
 **setting-up table** (spec-tilt §8.3): prop length and exposed rod against
-incline, which is how the angle gets set by hand -- see "Tilt" below. This is the same set of assertions as the
+incline, which is how the angle gets set by hand -- see "Tilt" below --
+then the hopper's table of wall slopes, level fill, rim heights and prop
+force every 2.5 degrees. This is the same set of assertions as the
 pytest suite, just human-facing. A check listed in `_EXPECTED_FAILURES`
 prints `XFAIL` with its recorded reason instead of failing the run, and
 prints `XPASS` and fails the run if it unexpectedly passes -- that is the
@@ -135,10 +140,17 @@ The drive adds `motor_bracket` (print one, foot down, no support; see
 "Drive resolutions" for why not face plate down). The motor and coupler are
 bought and not exported.
 
-The frame and shafts are owned or bought hardware, the belt is bought, and
-the bridge plates are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes `out/cut_list.txt`
-with the plate rectangle and hole positions, the tilt's cross-member (2020,
-234), its prop rod (M8, 136) and the two shafts (tail 145, head 140)
+The hopper adds `hopper_liner_R/L`, `seal_clamp`, `metering_clamp`,
+`hopper_foot_R/L` (print two of each), `corner_cleat` (print eight),
+`carry_rail` and `rail_bridge` (hopper-spec §9.9). The seal clamp prints on
+its end; see "Brush clamps" below.
+
+The frame and shafts are owned or bought hardware, the belt and brushes are
+bought, and the bridge plates and the hopper's panels and walls are cut from
+plywood, so none is exported as STL. `python3 cut_list.py` writes
+`out/cut_list.txt` with the plate rectangle and hole positions, the tilt's
+cross-member (2020, 234), its prop rod (M8, 128), the two shafts (tail 145,
+head 140) and the hopper's four boards as corner and hole coordinates
 instead.
 
 ## The assembly framework (phase 4)
@@ -324,6 +336,18 @@ and each gates the next (drivetrain-spec §13 has the full procedure):
    check drift. The fallback if slats walk is a keyed pin through the belt
    land; do not build it unless the test fails.
 
+Then the hopper's, hopper-spec §11 H1-H7: feeler-gauge the liners' 1.5 over
+the slats (`SKIRT_GAP`); watch lugs enter and leave the carry rail and the
+slats land on it under load (rail section, `RAIL_T0`); run 1 L of parts for
+10 minutes at 25, 40 and 55 and count what gets past the seal
+(`SEAL_BRUSH_INTERFERENCE`, `SEAL_BRUSH_RAKE`), rechecking the creep marks;
+measure parts per minute and jams through the metering brush (`METER_GAP`);
+dump a 2 L bucket at each angle (`RIM_FRONT_H`); weigh the hopper empty and
+with 2 L (`LOAD_BULK_DENSITY`, then rerun D2/D3); and run the thinnest parts
+looking under the liner edges and at the seal. **Measure the strip brush
+before printing either clamp** -- `BRUSH_BACKING_W/H` and `BRUSH_FREE_LEN`
+are guesses at a door sweep.
+
 ### Inter-slat gap (2026-09-21)
 
 `SLAT_WIDTH` is 17.0, not rev D's 16.0, so neighbouring slats are 1 mm
@@ -419,7 +443,7 @@ exactly where it did.
 To set an angle on the real machine: slacken the lock nut, turn the knob
 until the bare rod between the knob's jam nut and the lock nut measures the
 "exposed rod" figure from the table `checks.py` prints, then run the lock nut
-back up against the prop body. About 45 turns cover the range.
+back up against the prop body. About 52 turns cover the range.
 
 The base is **open**; so are the fasteners of the hinge blocks and the pin
 block. `TILT_WEIGHT_N` is an estimate until the frame is weighed. The
@@ -484,7 +508,36 @@ about 2 MPa. The nominal and doubled assertions both pass now, and both
 are ordinary checks. If the frame weighs in well over the 34 N estimate,
 revisit `TILT_MIN` before raising this again. The drive (spec-drive §7)
 adds 3.6 N at the head shaft: 112.8 N at 25 degrees, and 225.7 N doubled,
-still under 250.
+still under 250. The hopper then used up the rest, and pin B moved to 140:
+see "Pin B at 140".
+
+### Pin B at 140
+
+With the drive and the hopper (see "Hopper and drive together") the doubled
+prop force at 25 degrees reached 249.96 N of the 250 N ceiling. The force is
+the loads' moment about the hinge over the prop's arm about it, and at 25
+degrees, with pin B at 125, the prop leaned 52 degrees from vertical and its
+arm was 81. **`PROP_PIN_B_X` moved to 140** (2026-09-27): the prop stands
+more upright, the arm grows to 97, and the doubled force with a full hopper
+drops to 209.7 N (frame and drive alone: 189.3, was 225.7).
+
+It costs stroke and budget. The prop now runs 152.6 .. 217.9 pin to pin, a
+65.2 stroke (was 56.4), about 52 knob turns (was 45). The screw prop's stroke
+can be at most its body less 22 (captured nut, engagement, bore stop), and
+its shortest length must leave the foot and stack (57.6) under the body, so
+the rod's window shrinks: with the old 90 body it would be 2.8 wide.
+**`PROP_BODY_LEN` went 90 -> 92** to widen it, and **`ROD_LEN` 136 -> 128**,
+mid-window of 125.9 .. 130.6: cut the rod to +/-2. The stack on the foot now
+has 3.0 spare at 25 degrees (was 16.5). Past about 145 the two conditions
+cannot both hold with this prop; a bigger move would need a new prop design.
+
+What was checked, not assumed: the prop still leaves pin A on the clevis's
+open side, now 17 .. 27 degrees below the run (was 13 .. 23), and T7 and T8
+pass; the body clears the rail underside plane by 3.9 / 5.1 / 5.5 (was 3.4 /
+4.4 / 4.9); the pin block, 15 further headward, still clears the base and
+everything that tilts; the T7 control at 300 is unchanged. The setting-up
+table and every pinned prop number in the checks moved with it.
+`docs/design-baseline-v4.md` still shows pin B at 125.
 
 ### Negative controls
 
@@ -503,7 +556,7 @@ still under 250.
   `CLEVIS_SIDE_CLEAR` = 0.3 the eyes run at. That covers the base, the
   cheeks and the head wall at once. The body clears the cheek noses by 0.9.
 - **T7's plane distance** is measured on the prop body with everything
-  inside the clevis's extent along the run cut away: 3.4 / 4.4 / 4.9 at
+  inside the clevis's extent along the run cut away: 3.9 / 5.1 / 5.5 at
   25 / 40 / 55 degrees.
 - **Hinge bracket.** "Its lowest point is 8.0 above the base" is the boss.
   The plate's tail bottom corner is the rail's own corner and rides with it,
@@ -664,9 +717,10 @@ surface instead of the bed face.
   The bracket's foot, lower on the plate, is nearer, at 198.4. Both are
   pinned, and T2 holds everything to 4.0.
 - **Check 14.** The drive is a separate weight at the head shaft
-  (`DRIVE_MASS_KG`, `DRIVE_CG_T`), as §7 asks. `prop_force()` applies the
-  total at the combined CG, so doubling its `weight` doubles both terms:
-  225.7 N ≤ 250.
+  (`DRIVE_MASS_KG`, `DRIVE_CG_T`), as §7 asks: `drive_load()`, one entry of
+  `prop_force()`'s default `machine_loads()` beside the frame's since the
+  hopper made it a list, and `doubled()` doubles both: 225.7 N ≤ 250 with
+  pin B at 125, 189.3 N since it moved to 140.
 - **Check 15.** Rather than flipping `DRIVE_SIDE` and re-running, every
   drive check, the whole-loop sweep and T2 build both sides in one run.
   The head shaft is turned about x, not y, for -z, so its flat still faces
@@ -675,6 +729,175 @@ surface instead of the bed face.
   The spec says to check this against "the length now used there". The
   project records no length for the plates' M5, so that comparison is
   left for assembly.
+
+## Hopper
+
+`docs/specs/hopper-spec-v1.md`. A frame-mounted V-trough on the straight
+carrying run, t = 12 .. 136: the rising slats and a back wall at 85° to the
+run form the V, a seal brush in the back wall's notch wipes the slats at
+t = 28, and a metering brush 14 above the slat tops at the front wall lets
+out one cleat pocket of parts. Its lower walls are the first section of side
+skirt (`SKIRT_INSET`, `SKIRT_GAP`, `SKIRT_HEIGHT` by name), and a carry rail
+under the slats, cut with the guide wheel's own groove, takes the pile's
+weight off the belts. Nothing of it is tailward of t = 10, so the tail arc,
+tail plate and take-up are untouched, and none of it rides the tail plate.
+
+`parts/hopper.py` builds everything in hopper coordinates (t, h, z), h above
+the slat top face, and `geometry.hopper_offset(h)` turns an h into an
+`at()` offset. `parts/carry_rail.py` has the rail and its bridge to the
+plate at 88.5, `parts/brush.py` the two strip brushes as reference solids.
+`assembly.py`'s `hopper` group places all 26 members; `hopper_parts()`
+takes `meter_gap` and `rail_raise` for the checks, and
+`hopper_cavity_placed()` is the capacity reference solid, never in a group.
+
+Level fill (litres, at 0.50 kg/L of LEGO) and the prop force with the
+hopper, from `checks.py`'s table:
+
+| Incline | Level fill | Rim over base, front / back | Prop, empty / full / doubled |
+|---|---|---|---|
+| 25° | 2.04 L | 277 / 309 | 101 / 105 / 210 N |
+| 40° | 2.40 L | 289 / 289 | 59 / 57 / 114 N |
+| 55° | 1.87 L | 282 / 250 | 35 / 30 / 60 N |
+
+The prop forces include the frame estimate and the drive. The hopper weighs
+0.95 kg (solid PETG, 0.60 g/cm³ plywood, two brushes and 60 g of hardware),
+close to the spec's 1.0 kg ceiling. **Doubled, the prop force at 25° is
+209.7 N, 40.3 N under `PROP_FORCE_MAX`**, with pin B moved to 140 for it:
+see "Hopper and drive together" below and "Pin B at 140".
+
+`--report` lists the hopper's bought hardware (`params.HOPPER_HARDWARE`);
+the brushes are the only bought parts modelled as solids. The physical tests
+H1-H7 of hopper-spec §11 follow calibration step 7 ("Physical calibration,
+in order").
+
+## Hopper resolutions
+
+Where hopper-spec v1 could not be followed to the letter, resolved per the
+convention in `CLAUDE.md`. The first three change what gets made.
+
+### Brush clamps
+
+§4.4 and §4.5 make both clamps 96 long, "the channel plus 10 each side",
+lapping the notch sideways on the wall's inner face. But the liners run
+from wall to wall along the channel's edge: their lower walls are at
+z = ±38 .. ±41 from h = 1.5 to 28 and the flare starts there, so a clamp
+reaching z = ±48 on the wall's face overlaps them. Both clamps are
+`HOPPER_CLAMP_LEN` = 75 instead, the brush's own length, 0.5 from each liner
+like the brush, and lap the wall **above** the notch rather than beside it.
+
+The seal brush's root line lies on the back wall's inner face and the
+backing leans back from it at 15°, so the backing reaches 5.7 behind the
+face. The seal clamp therefore fills the notch, from 8.0 in front of the
+face to 3.0 behind the wall's outer face (`SEAL_CLAMP_FRONT`,
+`SEAL_CLAMP_BACK`), with its lower face at `SEAL_ROOT_H - 1.0` as §4.4 says.
+Because it reaches behind the face it mates with, it cannot print "mating
+face down"; it prints on an end, section flat, which leaves the raked slot a
+plain vertical channel with no support. Its grub screws come in from behind,
+the metering clamp's from the hopper side.
+
+The metering clamp is 12 thick, not the 10 first drafted, so the walls
+either side of its 6.3 brush slot are 2.85. Its wall bolts are at h = 72,
+9 above the notch, and its slots give the full 6..26 range; `params.py`
+asserts the plate still laps the wall by 10 at the lowest setting.
+
+### Front wall
+
+§4.5 gives the front wall "the cavity section grown by the liner thickness",
+the liner's outer boundary, like the back wall. Then the only place the
+front wall meets a panel is h = 93.8 .. 110, and the liner's flange fills
+that corner, so the front pair of corner cleats (§4.6) have nothing to
+bolt to. The front wall spans the full ±108 from `SKIRT_GAP` up, with the
+channel notch, and its cleats sit in the corner under the flare, at
+`CORNER_CLEAT_FRONT_H` = 10 and 45, clear of the flare's underside. The back
+wall is as the spec draws it; its cleats sit in the cavity above the liner's
+flange (`CORNER_CLEAT_BACK_H`), because below the flare top the panels start
+at t = 34, well headward of it.
+
+### Corner cleats
+
+§4.6 wants eight identical cleats and §4.1 two identical panels. An angle
+with a bolt through each leg is chiral once the two bolts are at different
+heights, which they must be or the bolts meet inside the angle; turning the
+cleat 180° about its diagonal is a symmetry of the part, so it has one
+placement per corner. On the -z side, then, the panel's bolt is the upper
+one where on the +z side it is the lower. The cleats stay identical and the
+**two panels differ in their four cleat holes**; `cut_list.py` gives both.
+
+### Hopper and drive together
+
+The hopper spec was written against baseline v3, before the drive, and
+worked out that its doubled load at 25° left about 30 N under the ceiling:
+"roughly 300 g of motor and mount before the ceiling is reached". The drive
+spec, written against the same baseline, spent it: its 0.37 kg at the head
+shaft adds 30.2 N doubled at 25°. Built together with pin B at 125, D2
+passed by 0.04 N (249.96 N). Of the spec's options -- raise `TILT_MIN`,
+move a pin, or lift `PROP_FORCE_MAX` with a stronger printed eye -- pin B
+moved (2026-09-27, "Pin B at 140"): D2 is now 209.7 N, 40.3 N under the
+ceiling. Moving pin A headward, the spec's suggestion, makes it worse: the
+prop leans further from the frame's normal and its arm about the hinge
+shrinks. Weighing the frame and a litre of parts (`TILT_WEIGHT_N`,
+`LOAD_BULK_DENSITY`) is still the real test of that margin.
+
+### Smaller readings
+
+- **C7, the pillow blocks.** §5.2 gives a provisional envelope for the tail
+  pillow blocks "until they are modelled". They are now, so C7 checks every
+  hopper part against the real blocks, bearings and spacers, 3.0 clear at
+  every take-up, and the envelope is gone.
+- **Liner flange.** "A 12.0 flange against the panel inner face, up to
+  h = 110" puts the flange's inner face 3.0 in from the panel, so the flare's
+  inner face meets it at h = 95, not at `FLARE_TOP_H` = 98 (which is where it
+  would meet the panel), and its top would be a 3.0 ledge facing up. The top
+  inner edge is chamfered 45° (`LINER_FLANGE_CHAMFER` = 2.0).
+- **Panel rear edge.** "Along the back wall's outer face down to t = 34"
+  cannot happen: that face is at t = 13.6 .. 30.5 over its whole height. Read
+  with "panel material stays headward of 34 below the flare top": the rear
+  edge follows the wall's outer face down to `FLARE_TOP_H`, then steps
+  headward to t = 34.
+- **A2, gaps under the seal.** The limit of 1.05 is the nominal 1.0 gap plus
+  0.05. The model spreads the slats evenly round the longer loop at a
+  positive take-up (see "Take-up and the loop"), so at +2.0 every
+  straight-run gap is 1.087; the check allows the straight-run gap at each
+  take-up plus 0.05. The gap is measured between the slats' top bands, just
+  below the edge chamfers, at four belt positions within a pitch, for pairs
+  on the carrying side from the tail arc to the front wall's outer face (the
+  head arc opens its gaps too, which is open question 9, not the hopper's).
+- **Distances measured with the run along x.** The slats and every hopper
+  part turn with the frame, so a distance between them cannot depend on the
+  incline. C1, C2's clash, C5-C8 are measured at incline 0, where bounding
+  boxes are tight and the sweeps quick; the no-clash whole-loop sweep with
+  the hopper in it, C9 (base, hinge, prop) and C10 run at all nine cases,
+  and a test confirms a slat-to-liner distance is the same at 0, 25 and 55.
+- **C1's tight pair.** The sweep places slats on the centreline, where the
+  nearest part is the carry rail at 0.5. The 0.29 cleat-to-liner figure is
+  measured with every slat pushed its full ±0.71 lug play (`slat_lateral_play()`), with the rail
+  left out then, since its groove is what stops them.
+- **C4, the seal brush tip.** The bristles are a 3.0 tuft raked 15°, so the
+  corner of the block is 0.39 below its tip line. "Lowest point 2.0 below the
+  slat top" is checked on the tip line, the middle of the tuft's end.
+- **C5, the cleat sweep.** A solid r = 35 cylinder about the tail axis
+  contains the carry rail, which runs 0.5 under the slats from t = 30: no
+  cleat goes there, since on the straight they ride above the slat top. The
+  cylinder is applied to material above the slat-top plane; the rail and
+  bridge are checked against the real slats by C1 and C10. The bristles are
+  exempt from C5 as from C1: the seal brush meets the cleats coming off the
+  tail wheel by design.
+- **`level_fill(cavity)`** takes the cavity already placed at its incline:
+  the machine frame never tilts, so horizontal is always machine +Y. The rim
+  is the cavity's most upward-facing face, which a test checks at all three
+  angles. The cavity leaves out the clamps and cleats and keeps the liner
+  flange's 3.0 step.
+- **`prop_force(incline, loads)`** takes (mass kg, t, offset) as §7.3 asks.
+  `machine_loads()` is its default: `frame_load()`, which turns
+  `TILT_WEIGHT_N` into the frame's entry, and `drive_load()`. They sum to
+  spec-drive's `TILT_TOTAL_WEIGHT_N` at its combined centre of gravity, and
+  a test holds the two forms equal. `doubled()` doubles a list. The hopper's hardware mass sits at the
+  solids' centre of gravity, each brush at its backing.
+- **Bolt holes and hardware.** Holes are modelled where the spec names them
+  (feet, cleats, clamps, rail and bridge); the fasteners themselves are only
+  listed. The foot's two M4 are at ±8.5 along the run to clear the M5
+  counterbore, and the M3 x 8 up through the bridge's 16 arm is counterbored
+  from below to leave 3.0 of grip.
 
 ## Missing parameters
 
@@ -696,6 +919,10 @@ factor, the coupler's bores, torque and mass, the stack's derived z
 positions (`COUPLER_Z`, `MOTOR_FACE_Z`, ...), the bracket's face-plate
 height, M3 hole, fillet and tie slot, the M5 head and T-nut, the check
 clearances, `GRAVITY`, the `TILT_TOTAL_*` combination and `DRIVE_HARDWARE`.
+The hopper added the M4 and M3 sizes, the check limits of its §8, the
+corner cleat's and the clamps' own dimensions (`CORNER_CLEAT_*`,
+`SEAL_CLAMP_*`, `METER_CLAMP_*`, `METER_BOLT_*`), the bridge's pads and bolt
+positions, and `BRUSH_BRISTLE_T` for the reference solid.
 
 ## Provisional parameters
 

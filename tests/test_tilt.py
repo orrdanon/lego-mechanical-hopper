@@ -233,11 +233,11 @@ def test_prop_would_foul_a_clevis_flange_that_was_not_open():
 
 
 def test_prop_length_table():
-    assert [g.prop_length(a) for a in ANGLES] == approx([164.1, 189.6, 220.5], abs=0.5)
-    assert [g.prop_lean(a) for a in ANGLES] == approx([51.8, 30.2, 12.3], abs=1.0)
+    assert [g.prop_length(a) for a in ANGLES] == approx([152.6, 182.6, 217.9], abs=0.5)   # pin B at 140, README
+    assert [g.prop_lean(a) for a in ANGLES] == approx([48.4, 26.1, 8.4], abs=1.0)
     assert [g.height_above_base(g.prop_pin_a(a), a) for a in ANGLES] == approx([116.4, 178.9, 230.5], abs=0.5)
-    assert g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) == approx(56.4, abs=0.1)
-    assert g.prop_turns(p.TILT_MIN) == 0.0 and g.prop_turns(p.TILT_MAX) == approx(45.0, abs=0.5)
+    assert g.prop_length(p.TILT_MAX) - g.prop_length(p.TILT_MIN) == approx(65.2, abs=0.1)
+    assert g.prop_turns(p.TILT_MIN) == 0.0 and g.prop_turns(p.TILT_MAX) == approx(52.2, abs=0.5)
 
 
 def test_prop_length_is_strictly_increasing():
@@ -260,9 +260,9 @@ def test_incline_for_length_inverts_prop_length():
 def test_length_budget():
     engaged, clear_of_pin_a, stack = p.prop_budget()
     assert engaged >= 0 and clear_of_pin_a >= 0 and stack >= 0
-    assert p.ROD_LEN - engaged == approx(130.5, abs=0.1)          # the window the spec quotes
-    assert p.ROD_LEN + clear_of_pin_a == approx(142.1, abs=0.1)
-    assert stack == approx(16.5, abs=0.1)
+    assert p.ROD_LEN - engaged == approx(125.9, abs=0.1)          # the rod window with pin B at 140 and the 92 body
+    assert p.ROD_LEN + clear_of_pin_a == approx(130.6, abs=0.1)
+    assert stack == approx(3.0, abs=0.1)
     assert p.FOOT_STACK == approx(29.6)
 
 
@@ -275,20 +275,21 @@ def test_a_160_rod_reaches_pin_a():
 
 def test_exposed_rod_is_the_stack_clearance_plus_the_spare_at_minimum():
     assert g.prop_exposed_rod(p.TILT_MIN) == approx(p.STACK_CLEARANCE + p.prop_budget()[2])
-    assert g.prop_exposed_rod(p.TILT_MAX) - g.prop_exposed_rod(p.TILT_MIN) == approx(56.4, abs=0.1)
+    assert g.prop_exposed_rod(p.TILT_MAX) - g.prop_exposed_rod(p.TILT_MIN) == approx(65.2, abs=0.1)
 
 
 def test_prop_force():
-    """With the drive at the head shaft, spec-drive §7; the frame alone gave 98 / 58 / 37."""
-    assert [g.prop_force(a) for a in ANGLES] == approx([112.8, 67.0, 41.8], abs=1.0)
+    """With the drive at the head shaft, spec-drive §7, and pin B at 140
+    (README "Pin B at 140"); with pin B at 125 it was 112.8 / 67.0 / 41.8."""
+    assert [g.prop_force(a) for a in ANGLES] == approx([94.7, 57.9, 37.0], abs=1.0)
     assert all(0 < g.prop_force(a) < p.PROP_FORCE_MAX for a in GRID)
 
 
 def test_prop_force_at_doubled_weight():
     """The guard on the weight estimate, frame and drive together (spec-drive
     §8.14) -- README 'Prop force at doubled weight'."""
-    assert all(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) <= p.PROP_FORCE_MAX for a in GRID)
-    assert max(g.prop_force(a, 2 * p.TILT_TOTAL_WEIGHT_N) for a in GRID) == approx(225.7, abs=0.5)
+    assert all(g.prop_force(a, g.doubled(g.machine_loads())) <= p.PROP_FORCE_MAX for a in GRID)
+    assert max(g.prop_force(a, g.doubled(g.machine_loads())) for a in GRID) == approx(189.3, abs=0.5)
 
 
 # --- Printed prop parts -------------------------------------------------------------------
@@ -316,8 +317,9 @@ def test_prop_body():
     assert not contains(b, (0, 0, 0))                                # eye
     assert contains(b, (0, 0, 8.0)) and not contains(b, (7.0, 0, 8.0))   # flat eye, solid above the bore
     assert not contains(b, (0, 0, 13.0)) and contains(b, (7.0, 0, 13.0))   # bore from 12.0 below pin A; round body
-    assert not contains(b, (5.5, 0, 85.0)) and contains(b, (5.5, 0, 89.4))   # nut pocket, closed below
-    assert contains(b, (5.5, 0, 80.0))                               # bridged ceiling takes the thrust
+    pocket = p.PROP_BODY_LEN - p.PROP_NUT_TOP                          # the nut's top face
+    assert not contains(b, (5.5, 0, pocket + 1.0)) and contains(b, (5.5, 0, p.PROP_BODY_LEN - 0.6))   # nut pocket, closed below
+    assert contains(b, (5.5, 0, pocket - 4.0))                       # bridged ceiling takes the thrust
 
 
 def test_prop_foot():
