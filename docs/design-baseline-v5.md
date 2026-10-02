@@ -1,55 +1,52 @@
-# Feed elevator: design baseline, v4
+# Feed elevator: design baseline, v5
 
-> **Frozen, superseded by `design-baseline-v5.md`.** Kept as written: it was
-> current from the pillow blocks until the drive, the hopper and the move of
-> prop pin B to 140. Do not update it; v5 is the reference for new work.
-
-Status as of 2026-09-26, the merge of branch `pillow-blocks` onto `99c533f`.
-All dimensions are millimetres and degrees.
+Status as of 2026-10-02, the merge of branch `followups` onto `f01b5b8`
+(the hopper merge). All dimensions are millimetres and degrees.
 
 This document describes what has been built and decided so far, so that
 specifications for the **remaining parts of the machine** can be written
-against it: side skirts and their posts, the tail take-up, the motor mount
-and coupler, the hopper, the discharge and the base. It is self-contained: it
-replaces `design-baseline-v3.md` (and v2, v1) and the specification files as
-the reference for new work. Where a number here and an older document
-disagree, this document (and `params.py`, which it is taken from) is correct.
+against it: side skirts and their posts, the tail take-up, the discharge and
+the base. It is self-contained: it replaces `design-baseline-v4.md` (and v3,
+v2, v1) and the specification files as the reference for new work. Where a
+number here and an older document disagree, this document (and `params.py`,
+which it is taken from) is correct.
 
-**What changed since v3.** v3 was the input to the pillow-block, drive and
-hopper specifications. The pillow blocks are now built in CAD
-(`docs/specs/spec-pillow-blocks.md`). No position moved: the shaft height
-stayed at 48.0, so every datum, every tilt number and the prop table in v3
-still hold. What changed:
+**What changed since v4.** v4 described the machine with its pillow blocks;
+the drive and hopper specifications had been written against v3. Both are
+now built in CAD, and the prop moved to carry them:
 
-1. **The pillow blocks are printed, not bought**, and each is its own
-   standoff: a PETG block from the bridge plate to a pressed-in 608ZZ
-   (§6.1). The shaft height of **48.0 is now fixed**.
-2. **The shaft is located axially** between the two blocks' outboard lips
-   through a printed spacer tube each side. The shaft sets are set against
-   the spacers with 0.4 of end play, not by caliper. **No shaft collars.**
-3. **Less shaft is free for a coupler: 17.5 beyond each block's outboard
-   face**, which is at z = ±55.0. v3's 22.5 was measured from the bearing
-   centre. A spec written against v3 that assumed a bought block of some
-   other width (the drive spec assumes ±64.0) must be re-checked (§8.3).
-4. **The returning-run clearance is now 6.05, to the block's foot**, not
-   13.05 to the plate: the feet reach inboard under the slats to z = ±34.
-5. **The end plates carry four more holes each**, and the blocks occupy
-   those plates from z = ±34 to ±55 (§6.1).
+1. **The head shaft is driven** by a NEMA 17 stepper through a 5 × 8
+   flexible coupler, on a printed motor bracket on the head bridge plate
+   (`docs/specs/spec-drive.md`, §6.2). The head shaft is cut **140**, long
+   on its drive end; the tail shaft stays 145. Which side the motor goes on
+   (`DRIVE_SIDE`) is **open**; every check builds both.
+2. **The hopper is built** (`docs/specs/hopper-spec-v1.md`, §8): a
+   frame-mounted V-trough on the straight carrying run, t = 12 .. 136, with
+   a seal brush at t = 28, a metering brush at the front wall, liners that
+   are the first section of side skirt, and a **carry rail** under the
+   slats that takes the pile's weight and guides them under it.
+3. **Prop pin B moved from bx = 125 to 140** (§7.3). With the drive and a
+   full hopper, the doubled prop force at 25° had reached 249.96 N of the
+   250 N ceiling; standing the prop more upright brings it to 209.7 N. The
+   prop body is 92 (was 90), the rod 128 (was 136), the stroke 65.2 (was
+   56.4), about 52 knob turns (was 45).
+4. **The prop force is a sum of loads**, each (mass, t, offset): the frame
+   estimate, the drive and the hopper, and the hopper's fill of LEGO.
+5. **The printer is a Bambu Lab P1S**, 256 × 256 × 256; every printed part
+   fits it in its print orientation.
 
-v3's changes over v2 all still stand: the incline is adjustable, 25° .. 55°;
-the frame hinges on a base and a screw prop holds it (§7); anything on the
-base is placed in the base frame (§2.4); and space under the frame and at the
-tail is taken (§8).
+Nothing on the conveyor moved: every datum of §2 to §6.1 in v4 still holds,
+and v4's and v3's other changes stand.
 
 Every value is labelled one of:
 
 - **fixed** - decided and implemented; changing it invalidates built and tested geometry
 - **catalogue** - a published figure for a bought part, not yet measured on the real one
-- **provisional** - a starting guess, expected to be tuned; §9 says what settles each
+- **provisional** - a starting guess, expected to be tuned; §10 says what settles each
 - **open** - not decided; input wanted
 
 **Nothing has been printed or physically tested yet.** Everything below is
-CAD that passes its own checks. §9 lists the physical tests, in order, that
+CAD that passes its own checks. §10 lists the physical tests, in order, that
 stand between this model and a working machine.
 
 ---
@@ -78,11 +75,15 @@ of a hopper and drops them off the head end.
 - The frame **hinges** on two M8 bolts near its bottom tail corner, in
   printed blocks on the base. A single **screw prop** between a cross-member
   under the frame and a block on the base sets the angle: turning a knob
-  changes its length, about 45 turns over the whole range, and a lock nut
+  changes its length, about 52 turns over the whole range, and a lock nut
   holds the setting.
 - The **tail bridge plate slides** along the frame's T-slots. That is the
   belt take-up. The mechanism that pushes it has not been designed.
-- The head shaft is driven; target 30 rpm, which gives 60 mm/s belt speed.
+- The head shaft is driven directly by a NEMA 17 stepper through a flexible
+  coupler, at a target 30 rpm, which gives 60 mm/s belt speed.
+- A **hopper** on the frame, over the carrying run near the tail, holds 1.9 ..
+  2.4 L of loose LEGO; the cleats draw parts out from under the pile and a
+  metering brush lets one cleat pocket's worth past at a time.
 
 | Item | Status |
 |---|---|
@@ -98,12 +99,17 @@ of a hopper and drops them off the head end.
 | Tilt: hinge brackets and blocks (2 mirror pairs), frame clevis, prop body, foot, knob, base pin block | modelled, checked, STL exported; not yet printed |
 | Tilt: cross-member (2020, cut), M8 rod | reference solids; on the cut list |
 | Tilt: M8 bolts, nuts, washers | reference solids; listed by `assembly.py --report` |
-| Assembly | frame, plates, drivetrain, belts, all 46 slats round the whole loop, the tilt, pillow blocks, bearings and spacers, at any incline |
+| Drive: motor bracket | modelled, checked, STL exported; not yet printed |
+| Drive: NEMA 17 stepper, flexible coupler | reference solids (bought); listed by `assembly.py --report` |
+| Hopper: liners (mirror pair), seal and metering clamps, feet (2 mirror pairs), corner cleats (8), carry rail, rail bridge | modelled, checked, STL exported; not yet printed |
+| Hopper: side panels (2), back wall, front wall | plywood; reference solids; on the cut list as corner and hole coordinates |
+| Hopper: strip brushes (2) | reference solids (bought); listed by `assembly.py --report` |
+| Assembly | frame, plates, drivetrain, belts, all 46 slats round the whole loop, the tilt, pillow blocks, bearings and spacers, the drive, the hopper, at any incline |
 | **Base** | **open; a placeholder slab for clearance checks only** |
 | **Tail take-up mechanism (jacking screw)** | **travel decided and clash-checked; mechanism not designed** |
-| **Side skirts and skirt posts** | **specified once (phase 2) against superseded numbers; not built; needs re-specifying, see §8** |
-| **Motor mount, coupler** | **not designed** |
-| **Hopper, brush mounts, discharge** | **not designed** |
+| **Side skirts and skirt posts** | **specified once (phase 2) against superseded numbers; not built; needs re-specifying from the hopper's front wall, see §9** |
+| **Discharge** | **not designed** |
+| **`DRIVE_SIDE`** | **open; both sides are built and checked** |
 
 ---
 
@@ -199,7 +205,9 @@ face. Shaft set and shaft: on the axis at the guide groove's centre plane.
 Bridge plate: centre of its top face. Pillow block: underside of its foot,
 under the bearing axis, in the bearing centre plane, +z outboard (the -z
 block is the same part turned 180° about y). Bearing: on the axis at mid-width.
-Spacer: on the axis at the face that meets the bearing.
+Spacer: on the axis at the face that meets the bearing. Hopper parts are
+laid out in **hopper coordinates** (t, h, z), h above the slat top face, and
+placed with `at(t, hopper_offset(h), z)` (§8).
 
 ### 2.4 The base frame: `base_frame(incline)`
 
@@ -223,7 +231,9 @@ take-up 0 unless stated:
 | Frame tail end, bottom corner | (-4.8, 6.7) | (-1.2, 5.9) | (2.5, 6.1) |
 | Frame head end, rail underside | (495.4, 240.0) | (421.6, 360.7) | (319.1, 458.2) |
 | Frame head end, rail top | (487.0, 258.1) | (408.8, 376.1) | (302.7, 469.7) |
-| Prop pin B (base-fixed) | (125.0, 15.0) | (125.0, 15.0) | (125.0, 15.0) |
+| Prop pin B (base-fixed) | (140.0, 15.0) | (140.0, 15.0) | (140.0, 15.0) |
+| Motor (drive), envelope bx / by | 309.7 .. 365.9 / 223.4 .. 279.6 | 236.6 .. 296.2 / 301.2 .. 360.8 | 147.4 .. 206.3 / 359.9 .. 418.8 |
+| Hopper rim above the base, front / back wall | 277.3 / 309.0 | 288.9 / 288.9 | 282.1 / 250.4 |
 | Tail pillow blocks, envelope bx / by, over the take-up | 0.2 .. 60.8 / 48.2 .. 118.5 | -21.3 .. 46.0 / 51.3 .. 121.0 | -42.4 .. 28.0 / 52.2 .. 117.7 |
 | Head pillow blocks, envelope bx / by | 322.8 .. 378.1 / 198.7 .. 266.5 | 251.4 .. 314.1 / 280.1 .. 346.0 | 161.8 .. 228.8 / 343.8 .. 404.4 |
 
@@ -268,7 +278,7 @@ belt model sits in the pulley groove.
 ## 4. The slat
 
 Printed, 46 off: 23 plain and 23 cleated. **Do not treat the slat as frozen**
-until the saddle and guide fits in §9 pass; but nothing new should be
+until the saddle and guide fits in §10 pass; but nothing new should be
 specified that requires changing it.
 
 ### 4.1 Body and cleat
@@ -339,7 +349,8 @@ constraint: the slats locate the belts, the guide locates the slats.
 The lug is engaged only while a slat is on a pulley, about three slats per
 shaft at any moment. **Along the straight runs nothing constrains the slats
 laterally except the belts' own stiffness.** Whether the carrying run needs
-more than that is untested, and is a question for the skirt work (§8).
+more than that is untested, and is a question for the skirt work (§9).
+Under the hopper the carry rail (§8) now gives the same ±0.71.
 
 ---
 
@@ -434,14 +445,14 @@ the **bearing coupon**, is made by the pillow block's pocket code (§6.1).
 | Parameter | Value | |
 |---|---|---|
 | Incline | 25° .. 55° from horizontal, set by hand; 40° nominal (§7) | range provisional |
-| Shaft | 8.0 dia × 145.0 long, two off, with the flat of §5.3 | fixed |
+| Shafts | 8.0 dia, with the flat of §5.3: tail 145.0, centred; head 140.0, 17.5 past the bearing on the drive end, the flat still centred on the shaft set | fixed |
 | Bearing centres | 100.0 (z = ±50) | fixed |
 | Shaft axis above the bridge plate top face | 48.0 | fixed, by the printed pillow block (§6.1) |
 | Shaft speed | 30 rpm → 60 mm/s | fixed target |
 | Frame | 2020 extrusion rectangle, 552 long × 274 wide overall, 234 between rails | fixed, owned, uncut |
-| Frame position along the run | from t = -60 to t = 492; 138 of frame beyond the head shaft, reserved for the motor | fixed |
+| Frame position along the run | from t = -60 to t = 492; 138 of frame beyond the head shaft | fixed |
 | Bridge plates | five, 9 plywood, 45 along the run × 274 across, on top of both rails, M5 into T-nuts at x = ±12, z = ±127; the end two also have 4 × Ø5.0 at x = ±14, z = ±40.25 for the pillow blocks | fixed |
-| Plate stations | t = 0, 88.5, 177, 265.5, 354; the end two carry the pillow blocks, the middle three are free for skirt posts | fixed |
+| Plate stations | t = 0, 88.5, 177, 265.5, 354; the end two carry the pillow blocks, the head one the motor bracket too; the hopper's rail bridge stands on 88.5; 177 and 265.5 are free for skirt posts | fixed |
 | Tail take-up travel | `TAIL_TAKEUP_MIN` .. `_MAX` = -4.0 (toward the head, to fit the belt) .. +2.0 (away, to tension) | provisional |
 
 **Along each shaft, from the centre outwards:**
@@ -459,12 +470,13 @@ block inboard face    46.5   = bearing inner face
 bearing centre        50.0
 bearing outer face    53.5   (the block's lip beyond it, 1.5 thick)
 block outboard face   55.0
-shaft end             72.5
+shaft end             72.5  (tail, and the head's non-drive end)
+head shaft, drive end 67.5  -> coupler 57.0 .. 82.0, motor face 95.5, motor back 135.5
 ```
 
-So the slat ends run 5.79 from the block towers at worst-case play, and
-there is **17.5 of shaft beyond each block's outboard face** for a coupler.
-Which end of the head shaft is driven is **open**; the shaft is symmetric.
+So the slat ends run 5.79 from the block towers at worst-case play. The
+head shaft's drive end runs 12.5 past the block's outboard face into the
+coupler (§6.2); which end that is, is **open**.
 
 **Take-up.** The tail bridge plate, the tail pillow blocks, bearings and
 spacers, the tail shaft and its shaft set move together along the run. The
@@ -510,7 +522,7 @@ bearing toward its open side against the press fit alone.
 
 The **bearing coupon** is a 150 × 40 × 8.5 bar with five pockets cut by the
 same code as the block at rib tips 21.6 .. 22.0, labelled, printed lip down
-like the block. It is test B1 (§9).
+like the block. It is test B1 (§10).
 
 Bought per machine: 4 (buy 6) × 608ZZ, 8 × M4 heat-set inserts, 8 × M4 × 16
 socket-head screws, 8 × M4 washers.
@@ -519,6 +531,27 @@ socket-head screws, 8 × M4 washers.
 shaft, up to offset +15.0 (the boss top); the foot fills the plate's width
 along the run to within 0.5 each end. Below the plate, the M4 heads at
 z = ±40.25. The tail pair moves with the take-up.
+
+### 6.2 Drive
+
+The head shaft is driven directly, no reduction. Everything here is on the
+frame and ignores the take-up; `DRIVE_SIDE` (+1 = +z) is **open**, and the
+`drive` and `drivetrain` groups take `drive_side`, so every check builds
+both sides.
+
+| Parameter | Value | |
+|---|---|---|
+| Motor | NEMA 17, 42.3 square × 40 body, 200 steps, 0.449 N m holding at 1.7 A; 5.0 D-shaft 23.5 from the mounting face | catalogue |
+| Driver | A4988, 16 microsteps, current limited to 1.2 A: 1600 steps/s at 30 rpm | provisional (test D3, D5) |
+| Torque | 0.254 N m available against 0.153 estimated (8 N of belt pull), 1.66 × margin; the motor skips at about 13.3 N of pull, **meant to protect the slats** (test D4) | derived |
+| Coupler | 5 × 8 flexible, Ø20 × 25, bored 11 deep each end; 10.5 of head shaft and 10.0 of motor shaft in it, 4.5 between the tips | catalogue / derived |
+| Stack along z, drive side | block outboard face 55.0, 2.0 gap, coupler 57.0 .. 82.0, motor face 95.5, motor back 135.5 (inside the frame's 137) | derived |
+| Motor bracket | printed, on the head bridge plate, 45 × 72 × 66, 30.5 cm³; face plate 5.0 thick at z = 90.5 .. 95.5 with a 22.4 pilot bore and 4 × M3; foot 6.0 to the plate edge, on the plate's two drive-side M5 (now M5 × 20); prints foot down | provisional |
+| Mass | 0.37 kg at the head shaft, in the prop force (§7.3) | estimate |
+
+**Space taken:** on the drive side of the head plate, z = 71 .. 137 (the
+bracket's foot) and z = 55 .. 135.5 along the shaft axis, up to 24 above it
+(the face plate's top) and the motor's 42.3 square round it.
 
 ---
 
@@ -559,54 +592,66 @@ by the cheeks' top faces straight into the cross-member; the M5 only locate.
 
 ```
 pin A (frame clevis, t = 221, offset -87)
-  prop body    printed, Ø18, 90 from pin A to its bottom face; M8 nut captured 8 above that face; 9.0 rod bore above
+  prop body    printed, Ø18, 92 from pin A to its bottom face; M8 nut captured 8 above that face; 9.0 rod bore above
   lock nut     run up against the body bottom to lock the setting
-  M8 rod       136 long; turns in the body's nut, does not slide in the foot
+  M8 rod       128 long; turns in the body's nut, does not slide in the foot
   jam nut
   knob         printed, Ø40 × 12, 8 finger scallops, captured M8 nut, on a washer on the foot's top wall
   foot         printed swivel, 28 from pin B to its top face; two nuts jammed on the rod in a pocket under the 5.0 wall
-pin B (base pin block, bx = 125, by = 15)
+pin B (base pin block, bx = 140, by = 15)
 ```
 
 The prop is in compression. Its thrust goes rod → knob → washer → foot top
 wall. The body does not turn (it is pinned at the top). The foot has a 14 wide
 side window, facing up and tailward, to fit and jam its two nuts. The **base
 pin block** is printed: cheeks 12.6 apart, solid below pin B, on a 70 × 50 × 5
-plate with 4 × 5.0 holes, fastener **open**.
+plate with 4 × 5.0 holes, fastener **open**. The prop leaves pin A 17 .. 27°
+below the run, on the clevis's open side.
 
 `geometry.py` gives `prop_pin_a(incline)`, `prop_pin_b(incline)`,
 `prop_length(incline)` (pin to pin), its inverse `incline_for_length(L)`,
 `prop_turns`, `prop_lean`, `prop_exposed_rod` and `prop_force`.
 
-| Incline | Prop length, pin to pin | Exposed rod (lock nut to jam nut) | Turns from 25° | Lean from vertical | Prop force at 34 N |
-|---|---|---|---|---|---|
-| 25° | 164.1 | 19.5 | 0 | 51.8° | 98 N |
-| 30° | 171.8 | 27.2 | 6.1 | | |
-| 35° | 180.3 | 35.7 | 13.0 | | |
-| 40° | 189.6 | 45.0 | 20.4 | 30.2° | 58 N |
-| 45° | 199.6 | 55.0 | 28.3 | | |
-| 50° | 209.9 | 65.3 | 36.6 | | |
-| 55° | 220.5 | 75.9 | 45.1 | 12.3° | 37 N |
+| Incline | Prop length, pin to pin | Exposed rod (lock nut to jam nut) | Turns from 25° | Lean from vertical | Prop force, frame and drive | With a full hopper |
+|---|---|---|---|---|---|---|
+| 25° | 152.6 | 6.0 | 0 | 48.4° | 95 N | 105 N |
+| 30° | 161.7 | 15.1 | 7.2 | | 79 N | 85 N |
+| 35° | 171.7 | 25.1 | 15.3 | | 67 N | 69 N |
+| 40° | 182.6 | 36.0 | 24.0 | 26.1° | 58 N | 57 N |
+| 45° | 194.0 | 47.4 | 33.1 | | 50 N | 47 N |
+| 50° | 205.8 | 59.2 | 42.5 | | 43 N | 38 N |
+| 55° | 217.9 | 71.3 | 52.2 | 8.4° | 37 N | 30 N |
 
 `checks.py` prints this every 2.5°; the exposed-rod column is what gets
 measured with calipers to set an angle on the real machine. Prop length is
 strictly increasing over the range.
 
 **Length budget** (asserted in `params.py`, margins at the current values):
-rod still 2.0 into the captured nut at 55° (5.5 spare); rod tip 12.0 clear of
-pin A at 25° (6.1 spare); the stack on the foot (washer, knob, jam nut, 3.0,
-lock nut = 29.6) clear of the body at 25° (16.5 spare). Moving pin A or pin B
-re-checks all three.
+rod still 2.0 into the captured nut at 55° (2.1 spare); rod tip 12.0 clear of
+pin A at 25° (2.6 spare); the stack on the foot (washer, knob, jam nut, 3.0,
+lock nut = 29.6) clear of the body at 25° (3.0 spare). The rod must be cut to
+125.9 .. 130.6. The screw prop's stroke can be at most its body less 22, and
+its shortest length must leave 57.6 under the body; with pin B much past 145
+the two cannot both hold, and moving it further needs a new prop design.
 
-**Loads.** The prop force is the weight's moment about the hinge divided by
-the prop's lever arm. The weight is an **estimate**: `TILT_WEIGHT_N` = 34 N at
-t = 220, offset -40, until the frame is weighed. The worst case is 25°. The
-ceiling `PROP_FORCE_MAX` is 250 N, and double the estimated weight must pass
-too (195.5 N at 25°, about 2 MPa of M8 pin on a 12 wide printed eye). **Any
-mass a later spec hangs on the frame, the motor above all, raises this and
-must be added to the weight and centre of gravity.** The pillow blocks, bearings and spacers
-(about 0.15 kg in all, at the two ends) are inside the 34 N estimate's
-uncertainty and have not been added separately.
+**Loads.** The prop force is the moment of the loads about the hinge divided
+by the prop's lever arm (97 at 25°, was 81 with pin B at 125).
+`prop_force(incline, loads)` takes a list of (mass, t, offset); its default
+is the frame and the drive:
+
+| Load | Mass | At (t, offset) | |
+|---|---|---|---|
+| Frame | 3.47 kg (`TILT_WEIGHT_N` = 34 N) | (220, -40) | **estimate**, until the frame is weighed |
+| Drive | 0.37 kg | (354, 0), the head shaft | estimate |
+| Hopper, rail, bridge, brushes, hardware | 0.95 kg | (78.7, 62.2), from the solids | PETG solid, 0.60 g/cm³ plywood |
+| LEGO, level fill | 0.94 .. 1.20 kg (0.50 kg/L) | its centroid at each angle (§8) | provisional density |
+
+The worst case is 25°. The ceiling `PROP_FORCE_MAX` is 250 N, and every
+load doubled must pass it: **209.7 N** with a full hopper (189.3 N for the
+frame and drive alone), so **40.3 N of margin**. The prop stays in
+compression at every angle, empty or full: least 30 N, at 55° full (≥ 10 asserted). **Any mass a later
+spec hangs on the frame ahead of the hinge eats that margin** and must be
+added to the loads.
 
 ### 7.4 The base and hardware
 
@@ -617,7 +662,7 @@ the base plane, 20 thick, from 120 behind the hinge axis to 600 ahead, z =
 and take-up; the closest point is the frame's tail corner, about 6 above it.
 
 Bought: 4 × M8 × 45 hex bolts (2 hinge, pins A and B), 4 nylocks, 5 washers,
-6 hex nuts, 136 of M8 rod, 6 × M5 × 12 + T-nuts, 4 × 2020 corner brackets
+6 hex nuts, 128 of M8 rod, 6 × M5 × 12 + T-nuts, 4 × 2020 corner brackets
 with M5 × 10 + T-nuts, 234 of 2020. Base fasteners (12) are open.
 
 **Out of scope, but keep possible:** a motorised prop, a bought linear
@@ -627,9 +672,47 @@ scale is not planned; the table above replaces it.
 
 ---
 
-## 8. What is known about the parts still to be specified
+## 8. The hopper
 
-### 8.1 Side skirts and posts
+Specified in `docs/specs/hopper-spec-v1.md`, built in CAD, nothing printed.
+**On the frame**: it tilts with the conveyor and is placed with
+`at(..., incline)`, never with `base_frame()`. None of it is on the tail
+plate, so the take-up does not move it, and nothing of it is tailward of
+t = 10 (`HOPPER_TAIL_KEEPOUT_T`): the tail arc, tail plate, take-up and the
+tail grub screws are untouched.
+
+Heights in the hopper are **h, above the slat top face** (offset 22.947):
+`geometry.hopper_offset(h)` turns one into an offset.
+
+| Item | Value | |
+|---|---|---|
+| Extent along the run | back wall at t = 19.6 (h = 0) leaning to 36.1 at the rim; front wall inner face t = 130, outer 136 | provisional |
+| Channel | the liners' lower walls, z = ±38 (`SKIRT_INSET`), from h = 1.5 (`SKIRT_GAP`) to 28 (`SKIRT_HEIGHT`): **the first section of side skirt**; cleat to liner 1.0, 0.29 at worst-case play | provisional, inherited by name |
+| Flare | 45° from the run normal out to the side panels at z = ±108; 50.1° from horizontal at 25°, 66.1° at 55° | provisional |
+| Back wall | 85° to the run (55° from horizontal at 40°, 40° at 55°), through the seal brush's root line | provisional |
+| Rim | horizontal at 40°: h = 110 at the front wall, 188.8 at the back | provisional |
+| Seal brush | strip brush, tips at t = 28, 2.0 below the slat top, raked 15° headward; root 10.15 above the cleat tips | provisional |
+| Metering brush | tips 14.0 above the slat top (cleats pass 2.0 under), slotted clamp 6 .. 26 | provisional |
+| Carry rail | t = 30 .. 140, the guide wheel's rim zone and groove run straight (same code), lands 0.5 under the slats; the lug in its groove gives the carrying run ±0.71 under the hopper | provisional |
+| Rail bridge | an arm between the runs at offset -12 .. +4, t = 76.5 .. 100.5, on two posts at z = ±44 .. ±54 bolted through the plate at 88.5 | provisional |
+| Feet | 4, printed, on the rail top faces at t = 46 and 126, z = ±105 .. ±137, each holding a side panel's bottom edge in a slot, M5 into the rail's top slot | provisional |
+| Capacity, level fill | 2.04 L at 25°, 2.40 at 40°, 1.87 at 55° | derived |
+| Mass | 0.95 kg with rail, bridge, brushes and hardware | derived |
+
+**Space taken:** on the frame from t = 12 to 140; up to the rim, 250 .. 310
+above the base; across to z = ±117 above the rail tops, and the feet to
+z = ±137 on them; inside the loop, the rail bridge at 88.5 between the runs.
+The plate at 88.5 is not free for a skirt post.
+
+Bought: two strip brushes (nylon door sweep, cut to 75), M5 × 12 + T-nuts,
+M4 and M3 screws, inserts and grubs (`assembly.py --report`). Plywood: two
+side panels (9), back and front walls (6), on the cut list.
+
+---
+
+## 9. What is known about the parts still to be specified
+
+### 9.1 Side skirts and posts
 
 An earlier specification (phase 2) exists for plywood side skirts on posts
 standing on the three middle bridge plates. **It was written before the belt
@@ -663,78 +746,24 @@ What is new and must be allowed for:
   with 40° in mind and is untested at 55°.
 - Under the frame, the cross-member occupies t = 211 .. 231 between the
   rails and the clevis hangs below it at z = 0 (§7.2). Posts on the middle
-  plates (t = 88.5, 177, 265.5) sit above the rails and do not meet either.
+  plates (t = 177, 265.5) sit above the rails and do not meet either.
+- **The hopper's liners are the first section of skirt** (§8): the skirts
+  start at the front wall's outer face, t = 136, with the same inset, gap and
+  height, and the front wall's notch sides continue the channel to there. The
+  plate at 88.5 carries the rail bridge, so no skirt post goes on it.
 
-### 8.2 Pillow blocks (built, §6.1)
+### 9.2 Discharge
 
-Now fixed at 48.0, which v3 already assumed, so nothing positioned against
-v3 moves. What the blocks mean for the parts below: the end plates are no
-longer free between z = ±34 and ±55 (nor, for the M4 heads, underneath at
-z = ±40.25); the shaft ends past z = ±55.0 are the only free shaft; and the
-tail blocks move with the take-up. The shaft height still sets where the
-frame is relative to the shaft axes (rail centreline at -(48 + 9 + 10) =
--67.0); it is no longer a knob to turn.
-
-### 8.3 Motor mount and coupler
-
-Specified in `docs/specs/spec-drive.md` against v3, not yet built. Its
-premises: the head shaft is driven at 30 rpm and 138 of frame beyond the head
-shaft is reserved. Load is light (loose LEGO on a 60 mm/s belt).
-
-**Changed under it by the pillow blocks:** the block's outboard face is at
-z = ±55.0 (5.0 past the bearing centre), not the ±64.0 the drive spec assumed
-for a bought block (`PILLOW_BLOCK_HALF_W` = 14.0); **17.5** of shaft is free
-beyond it. The block is 30 wide along the run at its tower and 63 tall above
-the plate top (to offset +15.0); the coupler window lies between z = 55.0 and
-the shaft end at 72.5. The drive spec's derived shaft extension and face-plate
-position should be re-derived from these, and `PILLOW_BLOCK_HALF_W` should
-become the block's own `PB_OUTBOARD_FACE_Z` rather than a new parameter.
-
-What the tilt adds:
-
-- The motor rides on the frame and tilts with it through 30°. Whatever holds
-  it must do so at every angle, and cable routing must allow the swing.
-- It sits at the far end of the frame from the hinge, so its mass counts
-  heavily against the prop: include it in `TILT_WEIGHT_N` / `TILT_CG_T` /
-  `TILT_CG_OFFSET` and re-run the force check (§7.3). The ceiling is 250 N
-  with the weight doubled.
-- At 25° the frame's head end is 240 above the base at its underside and
-  495 ahead of the hinge; at 55°, 458 up and 319 ahead (§2.4). Anything
-  hanging below the frame there must clear the base at 25°, where it comes
-  lowest, by the same 4.0 as everything else.
-
-### 8.4 Hopper, brush mounts and discharge
-
-Specified in `docs/specs/hopper-spec-v1.md` against v3, not yet built. The
-hopper wraps the tail end, so it must clear the swept radii in §2.3, let the
-tail assembly slide through the take-up range, and leave the tail shaft set's
-grub screws reachable. It must also clear the **tail pillow blocks** (§6.1):
-z = ±34 .. ±55 up to offset +15.0, and, in base coordinates, the envelopes of
-§2.4, which move with the take-up.
-
-The tilt makes the first decision **which frame the hopper belongs to**:
-
-- **On the frame**, it tilts with the conveyor; its geometry relative to the
-  tail pulley is constant, but its walls change angle by 30° and it must
-  still hold parts at 25° and at 55°. It must clear the base (the frame's
-  tail corner is only about 6 above it) and the hinge blocks outboard.
-- **On the base**, it stays level, but the tail shaft moves 43 horizontally
-  and about 8 vertically under it over the tilt range and take-up (§2.4), so
-  the seal against the belt has to accept that motion.
-
-Either way, the space outboard of the rails from t = -60 to -20, down to the
-base, is taken by the hinge (§7.1), and the prop stands on the base from
-pin B at bx = 125 up to pin A under the frame.
-
-The **discharge** at the head end moves with the angle: the carrying surface
+The discharge at the head end moves with the angle: the carrying surface
 over the head shaft is at (bx, by) = (328, 272) at 25° and (158, 403) at
 55°. Whatever takes the parts from the elevator (a chute, the next stage of
 the sorter) has to accept a discharge point that moves 170 horizontally and
-130 vertically, or the tilt range has to be narrowed.
+130 vertically, or the tilt range has to be narrowed. On the drive side the
+motor stands out to z = 135.5 at the head shaft (§6.2).
 
 ---
 
-## 9. Physical tests still to be done, in order
+## 10. Physical tests still to be done, in order
 
 Nothing in the CAD checks can tell whether the model matches the real belt
 and the real printer. These can, and each gates the next.
@@ -765,16 +794,31 @@ Also still to be done, independent of the above:
   | B2 | That bearing, pressed in, spins freely with the lip face flat on a table (lip bears on the outer ring only) | `PB_LIP_HOLE_DIA` |
   | B3 | First block, insert fitted, bolted to scrap 9 plywood; push the shaft sideways and axially by hand | `PB_FOOT_*`, `PB_BOSS_RADIUS` |
   | B4 | After the first week of running (with test 7): no outer ring turning in its pocket; if one does, epoxy at the pocket mouth | whether the PETG press fit holds |
+- Drive (spec-drive §9): **D1** measure the pillow block, motor and coupler;
+  **D2** print the bracket, fit motor and coupler, turn by hand; **D3** 60 min
+  at 30 rpm, case under 60 °C; **D4** the motor must skip before a held cleat
+  moves on the belt; **D5** find the current that runs a full hopper.
+  `DRIVE_SIDE` is chosen with the base and the discharge.
+- Hopper (hopper-spec §11), after test 7. **Measure the strip brush before
+  printing either clamp.** **H1** feeler-gauge the liners' 1.5 over the
+  slats; **H2** lugs into and out of the carry rail with no catch, slats
+  landing on it under load; **H3** 10 min with 1 L of parts at 25, 40, 55,
+  nothing past the seal, creep marks rechecked; **H4** parts per minute and
+  jams through the metering brush with the largest screened parts; **H5** a
+  2 L bucket dumped at each angle, nothing spills; **H6** weigh the hopper
+  empty and with 2 L; **H7** the thinnest parts, nothing under the liners or
+  wedged at the seal.
 - Weigh the assembled frame and find its balance point along the run:
-  `TILT_WEIGHT_N`, `TILT_CG_T`, `TILT_CG_OFFSET`. Until then the prop force
-  is an estimate.
+  `TILT_WEIGHT_N`, `TILT_CG_T`, `TILT_CG_OFFSET`, and a level litre of mixed
+  parts (`LOAD_BULK_DENSITY`). Until then the prop force is an estimate, and
+  its 40 N of margin at 25° is only as good as these.
 - Tilt fit: hinge pin running free in the printed bushing, prop eyes in their
   clevises, knob turning the rod under load. All are provisional printed
   clearances (8.4 bushing, 12.6 clevis gaps, 8.2 pin holes).
 
 ---
 
-## 10. The CAD project a specification has to fit
+## 11. The CAD project a specification has to fit
 
 Python, [build123d](https://github.com/gumyr/build123d) 0.11 (OpenCascade),
 at the repo root. Layers, each importing only from the ones above it in this
@@ -783,10 +827,10 @@ table:
 | Layer | Holds | Returns |
 |---|---|---|
 | `params.py` | every dimension, plus assertions tying them together | numbers |
-| `geometry.py` | datums and placement: run direction, shaft axes, `at(t, offset, lateral, incline)`, `loop_at(s, takeup, incline)`, `tail_shaft_t(takeup)`, the radial stations of §2.3 as functions, `is_cleated(i)`, plate and frame datums; for the tilt `hinge_axis`, `base_frame`, `base_z`, `height_above_base` and the prop functions of §7.3 | numbers, transforms; never a solid |
+| `geometry.py` | datums and placement: run direction, shaft axes, `at(t, offset, lateral, incline)`, `loop_at(s, takeup, incline)`, `tail_shaft_t(takeup)`, the radial stations of §2.3 as functions, `is_cleated(i)`, plate and frame datums; for the tilt `hinge_axis`, `base_frame`, `base_z`, `height_above_base` and the prop functions of §7.3, with `machine_loads()` for the force; for the hopper `hopper_offset(h)`, `rim_h`, the back wall plane, the wall slopes and `run_coords` | numbers, transforms; never a solid |
 | `profile.py` | the belt tooth and the standard pulley groove; `pulley_section()` is the only thing that makes teeth | 2D edges and faces; never a solid |
-| `parts/*.py` | one module per part: `slat`, `shaft_set`, `shaft`, `belt`, `coupons`, `frame` (with the cut `cross_member`), `bridge_plate`, `hinge`, `prop`, `hardware` (bought M8 parts), `base_ref`, `pillow_block`, `bearing`, `spacer` | a solid in its own local frame; never a machine position |
-| `assembly.py` | named groups of positioned parts: `frame`, `plates`, `drivetrain`, `belts`, `slats`, `tilt`, `pillow_blocks`, `bearings`, `spacers`; every group takes `takeup` and `incline` | positioned compounds |
+| `parts/*.py` | one module per part: `slat`, `shaft_set`, `shaft`, `belt`, `coupons`, `frame` (with the cut `cross_member`), `bridge_plate`, `hinge`, `prop`, `hardware` (bought M8 parts), `base_ref`, `pillow_block`, `bearing`, `spacer`, `motor`, `coupler`, `motor_bracket`, `hopper` (its printed and plywood parts and the cavity), `carry_rail`, `brush` | a solid in its own local frame; never a machine position |
+| `assembly.py` | named groups of positioned parts: `frame`, `plates`, `drivetrain`, `belts`, `slats`, `tilt`, `pillow_blocks`, `bearings`, `spacers`, `drive`, `hopper`; every group takes `takeup` and `incline` | positioned compounds |
 
 Rules a new part specification should respect:
 
@@ -802,7 +846,7 @@ Rules a new part specification should respect:
    bounding boxes, volume ranges, points that must be inside or outside the
    solid, pairs of solids that must not intersect, validity of the solid.
    Each one is implemented twice, in `checks.py` (pass/fail report) and as a
-   pytest test. Currently 46 checks and 272 tests, all passing.
+   pytest test. Currently 68 checks and 416 tests, all passing.
 5. **A negative control must be able to fail.** One drivetrain check asked
    that a zero-clearance guide groove collide with the lug; a straight lug
    only *touches* a revolved groove of its own section, sharing no volume, so
@@ -818,9 +862,12 @@ Rules a new part specification should respect:
    `base_frame(incline)`, never rotated. Never move the machine origin.
 9. **Say how each part leaves the project**: printed parts are exported as
    STL in a stated print orientation (so far: both slats, the shaft set,
-   three coupons, nine tilt parts, the pillow block and the spacer); bought or cut parts are reference solids
-   only; plywood and cut metal (the cross-member, the M8 rod) go on the cut
-   list; bought hardware is listed by `assembly.py --report`.
+   three coupons, nine tilt parts, the pillow block, the spacer, the motor
+   bracket and nine hopper parts), and must fit `PRINT_BED`, a Bambu Lab
+   P1S, 256 × 256 × 256; bought or cut parts are reference solids only;
+   plywood and cut metal (the cross-member, the M8 rod, the shafts, the
+   hopper's boards) go on the cut list; bought hardware is listed by
+   `assembly.py --report`.
 10. Adding a part to the machine is one group function in `assembly.py`, one
    entry in its group table and one colour. If a part needs more than that,
    say so in the spec.
@@ -828,28 +875,33 @@ Rules a new part specification should respect:
 Helpers already available for checks: bounding-box size, volume in cm³,
 point-in-solid, minimum distance between solids (with a bounding-box
 short-cut, `min_distance`, for sweeps), and solid-solid clash with a volume
-tolerance. A whole-loop sweep (every real slat against every fixed part, at
+tolerance; `level_fill()` for what a cavity holds at an incline and
+`mass_properties()` for a mass and centre of gravity from solids and
+densities. A whole-loop sweep (every real slat against every fixed part, at
 three take-ups × three inclines, nine cases) already exists and new fixed
 parts should be added to it. `geometry.slat_lateral_play()` (0.707) is the
-slats' sideways play, for distance checks at worst case. `checks.py` takes
-about two and a half minutes, most of it that sweep. Moving a real slat
-copies it and is slow; shift the other part instead.
+slats' sideways play, for distance checks at worst case. A distance between
+two things that both ride the frame does not depend on the incline, so such
+sweeps can run with the run along x (incline 0), where bounding boxes are
+tight. `checks.py` takes about four minutes, most of it the sweep. Moving a
+real slat copies it and is slow; shift the other part instead.
 
 ---
 
-## 11. Open questions for the next specifications
+## 12. Open questions for the next specifications
 
-1. **Skirts.** Given §8.1: inset, gap and height against the corrected slat
-   top and the ±0.71 play; whether the 0.29 worst-case cleat-to-skirt
-   clearance is acceptable or the cleat length or skirt inset should move;
-   and how the skirts end at the head (discharge) and tail (hopper).
-2. **Lateral support on the carrying run.** The guide acts only at the two
-   pulleys, 354 apart. Is that enough under a side load from LEGO piling
-   against one skirt, or does the carrying run need a mid-span guide or a
-   slider bed under the belts?
-3. **Belt support.** Nothing supports the carrying run between the shafts.
-   With light load and 5 mm mid-span deflection at the set tension this may
-   be fine; a recommendation is wanted.
+1. **Skirts.** Given §9.1: from the hopper's front wall at t = 136 to the
+   head, with the hopper's inset, gap and height (or a change agreed for
+   both); whether the 0.29 worst-case cleat-to-skirt clearance is acceptable
+   or the cleat length or skirt inset should move; and how they end at the
+   head (discharge). The plate at 88.5 is taken by the rail bridge.
+2. **Lateral support on the carrying run.** The guide acts at the two
+   pulleys and, under the hopper, along the carry rail (t = 30 .. 140). Is
+   that enough from 140 to the head shaft, or should the rail run on (the
+   hopper spec allows the skirt spec to extend it)?
+3. **Belt support.** Under the hopper the carry rail takes the pile's
+   weight. From t = 140 to the head nothing supports the carrying run; with
+   one cleat pocket of parts per slat this may be fine.
 4. ~~Pillow blocks and standoffs.~~ **Closed**: printed blocks, shaft
    height fixed at 48.0 (§6.1).
 5. **Take-up mechanism.** A jacking screw for the tail plate within the
@@ -859,18 +911,16 @@ copies it and is slow; shift the other part instead.
    (§7.1).
 6. ~~Axial location of the shaft sets.~~ **Closed**: spacer tubes to the
    bearings' inner rings, lips outboard, 0.4 end play (§6.1).
-7. **Drive.** Specified against v3 (§8.3); re-check it against the block's
-   outboard face at z = ±55.0 and the 17.5 of free shaft beyond it, and add
-   its mass to the prop force.
-8. **Hopper.** Specified against v3 (§8.4); re-check it against the tail
-   pillow blocks. Geometry round the tail end against the swept radii of §2.3, sealing against 1.0 slat gaps
-   that open to 5.7 on the tail pulley, and access to the tail grub screws
-   and take-up.
+7. ~~Drive.~~ **Built** (§6.2). `DRIVE_SIDE` is still open; choose it with
+   the base and the discharge.
+8. ~~Hopper.~~ **Built** (§8), frame-mounted, on the straight run clear of
+   the tail. What remains is physical: the brush, the bulk density, and
+   tests H1 .. H7.
 9. **Pinch at the head.** Slat tops open to 5.7 going over the head pulley
    and close again onto the return run. Whether a part can be carried into
    that gap and pinched, and whether discharge needs a stripper or brush.
 10. **Discharge.** Where the parts go from the head end, given that the
-    discharge point moves 170 × 130 over the tilt range (§8.4). Whether that
+    discharge point moves 170 × 130 over the tilt range (§9.2). Whether that
     argues for a narrower range.
 11. **The base.** What the machine stands on (board, extrusion frame, bench),
     its footprint (the hinge blocks stand at z = ±148 .. ±168, the frame's
@@ -880,3 +930,8 @@ copies it and is slow; shift the other part instead.
     prop's travel, lowers the worst-case force (at 25°) and shrinks the
     discharge and tail movement. What incline the sorter actually needs is
     not known yet.
+13. **Prop margin.** 40 N under the 250 N ceiling at 25°, doubled, on
+    estimated masses. Anything added ahead of the hinge spends it; beyond
+    pin B at about 145 the screw prop cannot follow, so a bigger need means a
+    new prop design, a stronger printed eye (a higher ceiling) or a higher
+    `TILT_MIN`.

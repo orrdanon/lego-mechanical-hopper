@@ -18,7 +18,7 @@ from checks import (
     rim_edge_angle, rim_heights, slat_top_gaps, slats_over_rail,
 )
 from cut_list import write_cut_list
-from export import hopper_prints
+from export import hopper_prints, printed_parts
 from parts.brush import brush_backing, brush_bristles
 from parts.carry_rail import carry_rail, rail_bridge
 from parts.hopper import (
@@ -434,8 +434,9 @@ def test_c10_bridge_clearance_is_the_returning_lugs():
     assert nearest == approx(lug_tip + p.RAIL_ARM_OFFSET[0], abs=1e-3)   # 3.95, under the arm
 
 
-@pytest.mark.parametrize("part, name, rotation", hopper_prints(), ids=[name for _, name, _ in hopper_prints()])
+@pytest.mark.parametrize("part, name, rotation", printed_parts(), ids=[name for _, name, _ in printed_parts()])
 def test_c11_every_printed_part_fits_the_bed(part, name, rotation):
+    """The hopper's and every other printed part, on the P1S."""
     size = bbox_size(Rot(*rotation) * part)
     assert all(a <= b for a, b in zip(size, p.PRINT_BED))
 

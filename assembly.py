@@ -31,7 +31,7 @@ import sys
 from fnmatch import fnmatchcase
 from typing import Callable
 
-from build123d import Box, Compound, Location, Plane, Pos, Rot
+from build123d import Align, Box, Compound, Location, Plane, Pos, Rot
 
 import params as p
 from geometry import (
@@ -183,15 +183,31 @@ def belts_group(detail: bool = False, takeup: float = 0.0, incline: float = p.IN
     ])
 
 
-def _slat_box(cleated: bool) -> Box:
-    """A plain box of the slat's bounding box, in the slat's local frame."""
-    bounds = slat(cleated).bounding_box()
-    return Pos(*bounds.center()) * Box(*bounds.size)
+def _slat_box(cleated: bool) -> Compound:
+    """A quick stand-in for a slat, in the slat's local frame: plain boxes
+    for its body, its cleat and its four saddle tabs. Not one bounding box:
+    that is as wide as the slat up to the cleat tip and as wide again down
+    to the tab tips, so it runs into the hopper's liners and carry rail,
+    which the real slat clears. The tabs keep the lowest point where the
+    real slat has it; their lips and the guide lug are left out, as boxes of
+    them would cut into the belts and the rail's groove."""
+    up = (Align.CENTER, Align.MIN, Align.CENTER)
+    boxes = [Box(p.SLAT_WIDTH, p.SLAT_THICKNESS, p.SLAT_LENGTH, align=up)]
+    if cleated:
+        boxes.append(Pos(0, p.SLAT_THICKNESS, 0) * Box(p.CLEAT_WIDTH_ROOT, p.CLEAT_HEIGHT, p.CLEAT_LENGTH, align=up))
+    half_gap = (p.BELT_WIDTH - p.SADDLE_INTERFERENCE) / 2
+    for belt in (p.BELT_SPACING / 2, -p.BELT_SPACING / 2):
+        for side in (1, -1):
+            z = belt + side * (half_gap + p.SADDLE_TAB_THICKNESS / 2)
+            boxes.append(Pos(0, 0, z) * Box(
+                p.SADDLE_TAB_LENGTH, p.SADDLE_TAB_DEPTH, p.SADDLE_TAB_THICKNESS, align=(Align.CENTER, Align.MAX, Align.CENTER)
+            ))
+    return Compound(children=boxes)
 
 
 def slats_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
     """46 slats at loop_at(i * SLAT_PITCH), cleated where is_cleated(i).
-    Plain boxes of the slat bounding box unless detail. With a takeup the
+    A few plain boxes each (_slat_box()) unless detail. With a takeup the
     slats stay evenly spread round the longer or shorter loop."""
     make = slat if detail else _slat_box
     solids = {cleated: make(cleated) for cleated in (False, True)}

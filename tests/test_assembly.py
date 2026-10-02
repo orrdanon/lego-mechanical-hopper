@@ -5,7 +5,7 @@ import pytest
 from assembly import COLOURS, GROUPS, assembly
 from cut_list import write_cut_list
 from export import export_all
-from params import BELT_SPACING, PLATE_LENGTH, PLATE_STATIONS, PLATE_WIDTH, SLAT_COUNT
+from params import BELT_SPACING, LUG_DEPTH, PLATE_LENGTH, PLATE_STATIONS, PLATE_WIDTH, SADDLE_TAB_DEPTH, SLAT_COUNT
 
 
 def test_assembly_builds_every_group_by_default():
@@ -107,3 +107,30 @@ def test_assembly_rejects_a_pattern_matching_nothing():
     with pytest.raises(ValueError) as exc:
         assembly("drivetrain:pulley")
     assert "tail shaft set" in str(exc.value)
+
+
+def test_slat_stand_ins_touch_only_what_the_real_slats_touch():
+    """The default slats are quick boxes for the viewer. They must not show
+    clashes the real slats don't have: with the hopper's liners and carry
+    rail in particular, which one bounding box per slat ran into."""
+    from assembly import belts_group, hopper_parts, slats_group
+    from utils import _overlap_volume
+
+    others = hopper_parts() + list(belts_group().children)
+    stand_ins, real = slats_group().children, slats_group(detail=True).children
+    for box, true in zip(stand_ins, real):
+        for other in others:
+            if _overlap_volume(box, other) > 1e-3:
+                assert _overlap_volume(true, other) > 1e-3, f"{box.label} / {other.label}"
+
+
+def test_slat_stand_in_keeps_the_real_slats_extent():
+    """Same length, width and top as the real slat; the bottom is the tab
+    tips, 0.4 above the lug's, which points into the loop."""
+    from assembly import _slat_box
+    from parts.slat import slat
+
+    for cleated in (False, True):
+        box, true = _slat_box(cleated).bounding_box(), slat(cleated).bounding_box()
+        assert (box.size.X, box.size.Z, box.max.Y) == pytest.approx((true.size.X, true.size.Z, true.max.Y))
+        assert box.min.Y - true.min.Y == pytest.approx(LUG_DEPTH - SADDLE_TAB_DEPTH)
