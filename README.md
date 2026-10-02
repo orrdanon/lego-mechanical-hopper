@@ -14,11 +14,14 @@ ones, and each rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided, written
 for readers outside the project and as the input to new specifications, see
-`docs/design-baseline-v4.md`. Its numbers are taken from `params.py`:
+`docs/design-baseline-v5.md`. Its numbers are taken from `params.py`:
 regenerate them when parameters change. The earlier versions are frozen
 snapshots kept as the reference of the spec written against each:
+`docs/design-baseline-v4.md` (commit `9461b13`, with the pillow blocks,
+before the drive, the hopper and pin B at 140),
 `docs/design-baseline-v3.md` (commit `ca50e1a`, before the pillow blocks) for
-`spec-pillow-blocks.md` and anything else written before it,
+`spec-pillow-blocks.md`, `spec-drive.md`, `hopper-spec-v1.md` and anything
+else written before it,
 `docs/design-baseline-v2.md` (commit `ad71c0e`, before the tilt) for
 `spec-tilt.md`, and `docs/design-baseline-v1.md` (commit `98f4fb1`, with the
 uncorrected belt-back radius) for `drivetrain-spec.md`.
@@ -76,7 +79,7 @@ member labels. So the drivetrain can be built up one part per run, and
 Each group is shown in its fixed colour from `assembly.COLOURS` and named
 in the viewer tree, with its members labelled (`plate 0 (bearing)`, `rail
 +z`, `head shaft set`, `slat 12`, ...). `--detail` is accepted by every
-group. `slats` draws plain bounding boxes without it and real slats with
+group. `slats` draws a few plain boxes per slat (body, cleat, tabs) without it and real slats with
 it; `belts` draws the smooth backing band without it and both 276-tooth
 loops with it. The rest ignore it.
 
@@ -144,6 +147,11 @@ The hopper adds `hopper_liner_R/L`, `seal_clamp`, `metering_clamp`,
 `hopper_foot_R/L` (print two of each), `corner_cleat` (print eight),
 `carry_rail` and `rail_bridge` (hopper-spec §9.9). The seal clamp prints on
 its end; see "Brush clamps" below.
+
+Every printed part fits the printer, a **Bambu Lab P1S** (`PRINT_BED` = 256
+x 256 x 256), in its print orientation, and `checks.py` holds all of them to
+it (hopper-spec C11 asked it of every printed part). The largest are the
+bearing coupon, 150 long, and the rail bridge, 128.
 
 The frame and shafts are owned or bought hardware, the belt and brushes are
 bought, and the bridge plates and the hopper's panels and walls are cut from
@@ -537,7 +545,7 @@ pass; the body clears the rail underside plane by 3.9 / 5.1 / 5.5 (was 3.4 /
 4.4 / 4.9); the pin block, 15 further headward, still clears the base and
 everything that tilts; the T7 control at 300 is unchanged. The setting-up
 table and every pinned prop number in the checks moved with it.
-`docs/design-baseline-v4.md` still shows pin B at 125.
+`docs/design-baseline-v5.md` has the moved pin; the frozen v4 shows 125.
 
 ### Negative controls
 

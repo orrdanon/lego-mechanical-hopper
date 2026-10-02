@@ -723,7 +723,7 @@ RIM_LEVEL_TOL = 0.1               # deg (A5)
 HOPPER_CAPACITY = (1.50, 2.60)    # L, least at every check angle, most at INCLINE (B1)
 HOPPER_MASS_RANGE = (0.6, 1.0)    # kg (D1)
 PROP_FORCE_MIN = 10.0             # N, the prop stays in compression (D3)
-PRINT_BED = (220.0, 220.0, 250.0)   # mm -- PROVISIONAL, x, y, z (C11)
+PRINT_BED = (256.0, 256.0, 256.0)   # mm, x, y, z: Bambu Lab P1S build volume (C11); was the spec's provisional 220 x 220 x 250
 HOPPER_TABLE_STEP = 2.5           # deg, the slope, capacity and prop force tables' rows (A4, B1, D2)
 HOPPER_CONTROL_RIM_H = 60.0       # mm, a rim too low, for B2's control; below what RIM_FRONT_H may be
 

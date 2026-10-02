@@ -12,7 +12,7 @@ from build123d import Align, Box, Cylinder, GeomType, Location, Pos, Rot
 
 import geometry as g
 import params as p
-from export import hopper_prints
+from export import printed_parts
 from assembly import (
     COLOURS, GROUPS, assembly, bearings_group, belts_group, drive_group, drivetrain_group, frame_group,
     pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group,
@@ -1216,8 +1216,9 @@ def _check_rail_bridge():
 
 
 def _check_print_bed():
-    """C11."""
-    for part, name, rotation in hopper_prints():
+    """C11, for every printed part, not only the hopper's: each fits
+    PRINT_BED in its print orientation."""
+    for part, name, rotation in printed_parts():
         size = bbox_size(Rot(*rotation) * part)
         assert all(a <= b for a, b in zip(size, p.PRINT_BED)), f"{name}: {size}"
 
@@ -1331,7 +1332,7 @@ _CHECKS = [
     ("hopper C8: plates", _check_hopper_plates),
     ("hopper C9: base, hinge and prop", _check_hopper_tilt),
     ("hopper C10: rail bridge", _check_rail_bridge),
-    ("hopper C11: print bed", _check_print_bed),
+    ("print bed: every printed part (hopper C11)", _check_print_bed),
     ("hopper D1-D3: loads", _check_hopper_loads),
 ]
 

@@ -99,8 +99,8 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   both. Resolutions in `README.md` ("Drive resolutions"): the stack derived
   from the printed block's 5.0, not the spec's 14.0 (head shaft 140, not
   149), the bracket foot to the plate edge (66 across, not 57), and foot-down
-  printing because face-plate-down has no flat face. No baseline describes
-  the drive yet.
+  printing because face-plate-down has no flat face.
+  `docs/design-baseline-v5.md` describes the drive.
 - **Hopper: done in CAD, nothing printed.** `parts/hopper.py` (side panels,
   liners, back and front walls, seal and metering clamps, feet, corner
   cleats, and the cavity reference solid), `parts/carry_rail.py` (rail cut
@@ -118,8 +118,8 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   top, C7 against the real pillow blocks). The hopper weighs 0.95 kg. With
   the drive it left no margin under `PROP_FORCE_MAX`, so pin B moved 125 ->
   140 (body 90 -> 92, rod 136 -> 128): the doubled force at 25 deg is now
-  209.7 N -- README "Pin B at 140". No baseline describes the drive, the
-  hopper or the moved pin B yet; `design-baseline-v4.md` predates all three.
+  209.7 N -- README "Pin B at 140". `docs/design-baseline-v5.md` describes
+  the machine with the drive, the hopper and pin B at 140.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), the drive tests D1-D5 and `DRIVE_SIDE`, and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
@@ -134,8 +134,9 @@ update once the migration is done.
 ## Repo layout
 
 ```
-docs/design-baseline-v4.md  self-contained as-built summary for external spec writers (current, includes the pillow blocks);
+docs/design-baseline-v5.md  self-contained as-built summary for external spec writers (current: drive, hopper, pin B at 140);
                           derived from params.py -- regenerate its numbers when params change
+docs/design-baseline-v4.md  the same at commit 9461b13, with the pillow blocks; frozen, superseded by v5
 docs/design-baseline-v3.md  the same at commit ca50e1a, the input to the pillow-block spec; frozen, superseded by v4
 docs/design-baseline-v2.md  the same at commit ad71c0e, the input to the tilt spec; frozen, superseded by v3
 docs/design-baseline-v1.md  the same at commit 98f4fb1, the input to the drivetrain spec; frozen, superseded by v2
