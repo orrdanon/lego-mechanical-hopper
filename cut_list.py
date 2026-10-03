@@ -1,7 +1,8 @@
 """Cut list for everything sawn rather than printed: the plywood bridge
 plates, the tilt mechanism's cross-member and threaded rod (spec-tilt
 §8.4), the two shafts, which differ since the drive (spec-drive §8),
-and the hopper's side panels and walls (hopper-spec §9.9). Writes
+the hopper's side panels and walls (hopper-spec §9.9) and the skirt
+strips (spec-skirts §4.5). Writes
 out/cut_list.txt -- the sizes and hole positions you actually need at the
 saw. None of these is exported as STL (phase 2 §8.6, phase 4 §9.6)."""
 
@@ -10,6 +11,7 @@ from pathlib import Path
 import geometry as g
 import params as p
 from parts.hopper import back_wall_outline, front_wall_outline, side_panel_outline
+from parts.skirt import skirt_height, skirt_holes, skirt_length
 
 OUT_DIR = Path(__file__).resolve().parent / "out"
 
@@ -102,11 +104,27 @@ def hopper_lines() -> list[str]:
     return lines
 
 
+def skirt_lines() -> list[str]:
+    """The two skirt strips (spec-skirts §4.5): mirror images, the
+    countersinks on each one's inner (channel) face."""
+    lines = [
+        "Skirt strips  x2  (one +z, right looking from tail to head; one -z, left; mirror images)",
+        f"  material : {p.SKIRT_THICKNESS:g} mm plywood",
+        f"  rectangle: {skirt_length():g} x {skirt_height():g} mm  (along the run x height)",
+        f"  edge     : {p.SKIRT_EDGE_CHAMFER:g} mm x 45 deg on the bottom long edge of the inner face",
+        f"  holes    : {len(skirt_holes())} x {p.M4_CLEARANCE_DIA:g} mm, countersunk {p.M4_CSK_DIA:g} mm x 90 deg from the inner face,",
+        "             at (x, y) mm from the tail end (the end against the hopper's front wall) and the bottom edge:",
+    ]
+    lines += [f"             ({x:6.1f}, {y:5.1f})" for x, y in skirt_holes()]
+    lines.append("  the inner face is the one with the chamfer; on the -z strip it faces the other way")
+    return lines
+
+
 def write_cut_list() -> Path:
     OUT_DIR.mkdir(exist_ok=True)
     path = OUT_DIR / "cut_list.txt"
     lines = ["Cut list -- all dimensions mm", ""] + bridge_plate_lines() + [""] + tilt_lines() + [""] + shaft_lines() + [""]
-    lines += hopper_lines() + [""]
+    lines += hopper_lines() + [""] + skirt_lines() + [""]
     path.write_text("\n".join(lines))
     return path
 

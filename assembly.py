@@ -15,6 +15,7 @@ Usage:
     python assembly.py frame plates drivetrain belts slats
     python assembly.py plates pillow_blocks bearings spacers drivetrain
     python assembly.py plates pillow_blocks drivetrain drive
+    python assembly.py plates slats hopper skirts
     python assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"
     python assembly.py drivetrain belts "slats:slat ?" --detail   # slats 0-9 only
     python assembly.py --incline=55    # tilted; INCLINE if not given
@@ -44,7 +45,7 @@ from parts.bearing import bearing
 from parts.belt import belt_band, belt_loop
 from parts.bridge_plate import bridge_plate
 from parts.brush import brush_backing, brush_bristles
-from parts.carry_rail import carry_rail, rail_bridge
+from parts.carry_rail import carry_rail, carry_rail_b
 from parts.coupler import coupler
 from parts.frame import cross_member, frame
 from parts.hardware import hex_nut, pin_bolt, threaded_rod, washer
@@ -59,8 +60,10 @@ from parts.hopper import (
 from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft import shaft
 from parts.shaft_set import shaft_set
+from parts.skirt import skirt
 from parts.slat import slat
 from parts.spacer import spacer
+from parts.station import skirt_upright, station_arm, station_post
 
 
 def _group(label: str, children: list) -> Compound:
@@ -313,9 +316,8 @@ def hopper_parts(incline: float = p.INCLINE, meter_gap: float = p.METER_GAP, rai
         _labelled(brush_bristles().moved(seal_root), "seal brush bristles"),
         _labelled(brush_backing().moved(meter_root), "metering brush backing"),
         _labelled(brush_bristles().moved(meter_root), "metering brush bristles"),
-        carry_rail(rail_raise).moved(at(p.RAIL_T0, guide_rim_radius(), incline=incline)),
-        rail_bridge().moved(at(p.RAIL_ARM_T_CENTRE, plate_top_offset(), incline=incline)),
-    ]
+        carry_rail(raise_by=rail_raise).moved(at(p.RAIL_T0, guide_rim_radius(), incline=incline)),
+    ] + station_parts(p.STATION_T[0], incline)
     for t in p.HOPPER_FOOT_T:
         for side in (1, -1):
             foot = hopper_foot(side).moved(at(t, rail_top_offset(), side * rail_lateral(), incline))
@@ -326,6 +328,43 @@ def hopper_parts(incline: float = p.INCLINE, meter_gap: float = p.METER_GAP, rai
     return parts
 
 
+def station_parts(t: float, incline: float = p.INCLINE, uprights: bool = False) -> list:
+    """The support station on the plate at `t` (spec-skirts §4.2-4.4): two
+    posts and the arm across them, and with `uprights` a skirt upright on
+    each end of the arm. The -z post and upright are the +z part turned
+    180 deg about its own y."""
+    at_t = f"{t:g}"
+    parts = [_labelled(station_arm().moved(at(t, p.RAIL_ARM_OFFSET[0], incline=incline)), f"station arm at {at_t}")]
+    for side, name in ((1, "+z"), (-1, "-z")):
+        turn = Rot(0, 0 if side > 0 else 180, 0)
+        z = side * p.RAIL_POST_Z[0]
+        post = station_post().moved(at(t, plate_top_offset(), z, incline) * turn)
+        parts.append(_labelled(post, f"station post {name} at {at_t}"))
+        if uprights:
+            upright = skirt_upright().moved(at(t, p.RAIL_ARM_OFFSET[1], z, incline) * turn)
+            parts.append(_labelled(upright, f"skirt upright {name} at {at_t}"))
+    return parts
+
+
+def skirts_parts(incline: float = p.INCLINE, rail_raise: float = 0.0) -> list:
+    """Rail B, the stations at 177 and 265.5 with their uprights, and both
+    skirts (spec-skirts §5.1). `rail_raise` lifts rail B's lands, for R2's
+    negative control."""
+    parts = [carry_rail_b(rail_raise).moved(at(p.RAIL_B_T0, guide_rim_radius(), incline=incline))]
+    for t in p.SKIRT_STATIONS:
+        parts += station_parts(t, incline, uprights=True)
+    for side in (1, -1):
+        parts.append(skirt(side).moved(_in_hopper(p.SKIRT_T0, p.SKIRT_GAP, side * p.SKIRT_INSET, incline)))
+    return parts
+
+
+def skirts_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
+    """The side skirts, rail B and the two stations that carry them
+    (spec-skirts §5.1). `detail` is ignored, and so is `takeup`: nothing of
+    it is on the tail plate."""
+    return _group("skirts", skirts_parts(incline))
+
+
 def hopper_cavity_placed(incline: float = p.INCLINE, rim_front_h: float = p.RIM_FRONT_H):
     """The hopper's cavity reference solid, placed: what the capacity and
     load checks fill. Not a member of any group."""
@@ -333,8 +372,8 @@ def hopper_cavity_placed(incline: float = p.INCLINE, rim_front_h: float = p.RIM_
 
 
 def hopper_group(detail: bool = False, takeup: float = 0.0, incline: float = p.INCLINE) -> Compound:
-    """The hopper, its brushes, the carry rail and its bridge (hopper-spec
-    §9.6). `detail` is ignored, and so is `takeup`: nothing of it is on the
+    """The hopper, its brushes, rail A and the station at 88.5 (hopper-spec
+    §9.6, spec-skirts §5.1). `detail` is ignored, and so is `takeup`: nothing of it is on the
     tail plate. The checks run it against the tail at every take-up."""
     return _group("hopper", hopper_parts(incline))
 
@@ -351,6 +390,7 @@ GROUPS: dict[str, Callable[..., Compound]] = {
     "spacers": spacers_group,
     "drive": drive_group,
     "hopper": hopper_group,
+    "skirts": skirts_group,
 }
 
 # Fixed colour per group, so a group keeps its colour between runs.
@@ -366,6 +406,7 @@ COLOURS: dict[str, str] = {
     "spacers": "#b54f8a",         # printed magenta
     "drive": "#1f1f24",           # motor black
     "hopper": "#8e5bb5",   # printed purple, plywood and all
+    "skirts": "#5b9bb5",   # printed teal, the plywood strips too
 }
 
 # Members shown in a colour of their own, and flagged in the report.
@@ -434,7 +475,8 @@ def report(incline: float = p.INCLINE) -> list[str]:
     """What is in each group, with placeholders flagged, and the bought
     hardware for the tilt (spec-tilt §6, §7), the pillow blocks
     (spec-pillow-blocks §1), the drive (spec-drive §3, §11) and the
-    hopper (hopper-spec §4.8) -- the project has no BOM."""
+    hopper (hopper-spec §4.8) and the skirts (spec-skirts §4.7) -- the
+    project has no BOM."""
     lines = [f"Assembly at incline {incline:g} deg, prop {prop_length(incline):.1f} pin to pin", ""]
     for name, group in assembly(incline=incline).items():
         lines.append(f"{name} ({len(group.children)})")
@@ -455,6 +497,8 @@ def report(incline: float = p.INCLINE) -> list[str]:
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.DRIVE_HARDWARE + (head_shaft,)]
     lines += ["", "Bought hardware, hopper"]
     lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.HOPPER_HARDWARE]
+    lines += ["", "Bought hardware, skirts"]
+    lines += [f"  {quantity:>2} x {item:40s} {use}" for item, quantity, use in p.SKIRTS_HARDWARE]
     return lines
 
 

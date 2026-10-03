@@ -1,7 +1,7 @@
-"""hopper-spec-v1.md §8 -- the hopper, its brushes, the carry rail and its
-bridge. The measuring helpers are checks.py's own, so the two stay in step;
-the whole-loop no-clash sweep with the hopper in it is
-tests/test_drivetrain.py's."""
+"""hopper-spec-v1.md §8 -- the hopper, its brushes, rail A and the station
+at 88.5 (spec-skirts §5.1 replaced the rail bridge with it). The
+measuring helpers are checks.py's own, so the two stay in step; the
+whole-loop no-clash sweep with the hopper in it is tests/test_drivetrain.py's."""
 
 import math
 
@@ -13,19 +13,21 @@ import geometry as g
 import params as p
 from assembly import COLOURS, GROUPS, hopper_cavity_placed, hopper_group, hopper_parts, plates_group, report, slats_group
 from checks import (
-    PLYWOOD, _check_brushes, _check_hopper_plates, _check_hopper_tail, _check_hopper_tilt, _check_rail_bridge,
+    PLYWOOD, _check_brushes, _check_hopper_plates, _check_hopper_tail, _check_hopper_tilt,
+    _check_stations_clear_the_returning_run,
     contact_faces, hopper_fill, hopper_fixed, hopper_mass, hopper_slat_clearance, in_hopper, prop_loads,
     rim_edge_angle, rim_heights, slat_top_gaps, slats_over_rail,
 )
 from cut_list import write_cut_list
 from export import hopper_prints, printed_parts
 from parts.brush import brush_backing, brush_bristles
-from parts.carry_rail import carry_rail, rail_bridge
+from parts.carry_rail import carry_rail
 from parts.hopper import (
     back_wall, corner_cleat, corner_cleat_places, front_wall, hopper_cavity, hopper_foot, liner, meter_clamp,
     seal_clamp, side_panel,
 )
 from parts.shaft_set import guide_groove_section
+from parts.station import station_arm, station_post
 from utils import bbox_size, clash, contains, distance_within, level_fill, mass_properties, volume_cm3
 
 TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
@@ -151,7 +153,7 @@ def test_a5_rim_is_level_at_its_incline():
 
 def test_a7_every_part_is_one_valid_solid():
     group = hopper_group()
-    assert len(group.children) == 26
+    assert len(group.children) == 28   # the rail bridge became two posts and an arm (spec-skirts D5)
     for part in group.children:
         assert part.is_valid and len(part.solids()) == 1, part.label
 
@@ -170,17 +172,22 @@ def test_a8_liner():
 
 
 def test_a8_carry_rail():
+    """Rail A: the hopper's, ending at the joint on the station at 177
+    (spec-skirts §4.1)."""
     rail = carry_rail()
-    assert bbox_size(rail) == approx((110.0, 15.447, 16.0), abs=0.02)
-    assert 18.0 <= volume_cm3(rail) <= 28.0
+    length = p.RAIL_T1 - p.RAIL_T0
+    assert bbox_size(rail) == approx((length, 15.447, 16.0), abs=0.02)
+    assert 27.0 <= volume_cm3(rail) <= 35.0
     rim = g.guide_rim_radius()
     assert contains(rail, (50.0, -1.0, 7.0))                   # land
     assert not contains(rail, (50.0, -1.0, 0.0))               # groove
     assert contains(rail, (50.0, g.guide_groove_bottom_radius() - rim - 0.2, 0.0))
-    assert not contains(rail, (0.5, -0.5, 7.0)) and contains(rail, (6.0, -0.5, 7.0))   # 45 deg lead-in at each end
-    assert not contains(rail, (109.5, -0.5, 7.0))
-    arm_x = p.RAIL_ARM_T_CENTRE - p.RAIL_T0
-    assert not contains(rail, (arm_x + p.RAIL_INSERT_X, p.RAIL_BOTTOM_OFFSET - rim + 1.0, 0.0))   # M3 insert pocket
+    assert not contains(rail, (0.5, -0.5, 7.0)) and contains(rail, (6.0, -0.5, 7.0))   # 45 deg lead-in at the tail
+    assert contains(rail, (length - 1.0, -0.2, 7.0)) and not contains(rail, (length - 0.1, -0.2, 7.0))   # joint relief only
+    y = p.RAIL_SIDE_INSERT_OFFSET - rim
+    for t in (82.5, 94.5, 171.0):                              # side inserts at the stations, spec-skirts §3.2
+        assert not contains(rail, (t - p.RAIL_T0, y, p.GUIDE_WIDTH / 2 - 1.0))
+    assert contains(rail, (88.5 - p.RAIL_T0, y, p.GUIDE_WIDTH / 2 - 1.0))
 
 
 def test_rail_groove_is_the_guide_wheels():
@@ -194,16 +201,15 @@ def test_rail_groove_is_the_guide_wheels():
             assert not contains(rail, (50.0, r - rim + 0.05, z + inset), eps=0.02)
 
 
-def test_a8_rail_bridge():
-    bridge = rail_bridge()
-    assert bridge.is_valid and len(bridge.solids()) == 1
-    assert 40.0 <= volume_cm3(bridge) <= 80.0
-    assert bbox_size(bridge) == approx((p.RAIL_ARM_LEN, p.RAIL_ARM_OFFSET[1] - g.plate_top_offset(), 2 * p.RAIL_PAD_Z))
-    assert contains(bridge, (0, 45.0, 0)) and not contains(bridge, (0, 20.0, 0))    # arm; nothing between the posts
-    assert contains(bridge, (0, 20.0, 49.0)) and contains(bridge, (0, 2.0, 62.0))   # post, pad
-    assert not contains(bridge, (p.RAIL_PAD_BOLT_X, 2.0, p.RAIL_PAD_BOLT_Z))       # pad bolt hole
-    assert not contains(bridge, (p.RAIL_INSERT_X, 40.0, 0)) and not contains(bridge, (p.RAIL_INSERT_X, 50.5, 0.0))
-    assert contains(bridge, (p.RAIL_INSERT_X, 50.5, 2.5))   # M3 clearance through the grip, counterbore below it
+def test_a8_station_at_88_5():
+    """The split station that replaced the rail bridge: the bridge's post,
+    pad and arm envelope, in three parts (spec-skirts §4.2, §4.3)."""
+    parts = by_label(0.0)
+    arm, post = parts["station arm at 88.5"], parts["station post +z at 88.5"]
+    assert arm.bounding_box().min.Y == approx(p.RAIL_ARM_OFFSET[0])
+    assert post.bounding_box().min.Z == approx(p.RAIL_POST_Z[0]) and post.bounding_box().max.Z == approx(p.RAIL_PAD_Z)
+    assert parts["station post -z at 88.5"].bounding_box().max.Z == approx(-p.RAIL_POST_Z[0])
+    assert 40.0 <= volume_cm3(station_arm()) + 2 * volume_cm3(station_post()) <= 80.0   # the bridge's 40-80
 
 
 def test_plywood_parts():
@@ -261,7 +267,8 @@ def test_mating_parts_touch_and_do_not_clash():
     for a, b in [
         ("side panel +z", "hopper foot +z at 46"), ("side panel -z", "hopper foot -z at 126"),
         ("side panel +z", "liner +z"), ("side panel +z", "back wall"), ("side panel -z", "front wall"),
-        ("back wall", "seal clamp"), ("front wall", "metering clamp"), ("carry rail", "rail bridge"),
+        ("back wall", "seal clamp"), ("front wall", "metering clamp"), ("carry rail", "station arm at 88.5"),
+        ("station arm at 88.5", "station post +z at 88.5"), ("station arm at 88.5", "station post -z at 88.5"),
         ("liner +z", "back wall"), ("liner -z", "front wall"), ("seal brush backing", "seal clamp"),
     ]:
         assert parts[a].distance_to(parts[b]) < 1e-6, (a, b)
@@ -333,7 +340,8 @@ def test_c1_nearest_slat(takeup):
 def test_c1_slats_pushed_their_play_come_nearest_the_liner(sign):
     d, s, part = hopper_slat_clearance(0.0, sign * g.slat_lateral_play())
     assert d >= p.HOPPER_SLAT_CLEAR
-    assert d == approx(p.SKIRT_INSET - p.CLEAT_LENGTH / 2 - g.slat_lateral_play(), abs=1e-3)   # 0.29, inherited from the skirts
+    assert d == approx(p.SKIRT_INSET - p.CLEAT_LENGTH / 2 - g.slat_lateral_play(), abs=1e-3)   # 0.79 with the 73 cleat (spec-skirts D2)
+    assert d == approx(0.79, abs=0.01)
     assert part == ("liner +z" if sign > 0 else "liner -z") and g.is_cleated(int(s.split()[1]))
 
 
@@ -407,7 +415,8 @@ def test_c8_plates():
     plates = {c.label: c for c in plates_group(incline=0.0).children}
     assert parts["side panel +z"].distance_to(plates["plate 1 (support)"]) == approx(p.HOPPER_CLEAR)
     assert parts["hopper foot +z at 126"].distance_to(plates["plate 1 (support)"]) == approx(3.0)
-    assert parts["rail bridge"].distance_to(plates["plate 1 (support)"]) < 1e-6    # it stands on it
+    for side in ("+z", "-z"):
+        assert parts[f"station post {side} at 88.5"].distance_to(plates["plate 1 (support)"]) < 1e-6   # it stands on it
 
 
 def test_feet_stand_on_the_rails():
@@ -423,13 +432,14 @@ def test_c9_base_hinge_and_prop():
     _check_hopper_tilt()
 
 
-def test_c10_rail_bridge_clears_the_returning_run():
-    _check_rail_bridge()
+def test_c10_stations_clear_the_returning_run():
+    """Every station's, not only the hopper's: spec-skirts T1."""
+    _check_stations_clear_the_returning_run()
 
 
-def test_c10_bridge_clearance_is_the_returning_lugs():
-    bridge = by_label(0.0)["rail bridge"]
-    nearest = min(distance_within(bridge, s, 10.0) for s in slats_group(detail=True, incline=0.0).children)
+def test_c10_arm_clearance_is_the_returning_lugs():
+    arm = by_label(0.0)["station arm at 88.5"]
+    nearest = min(distance_within(arm, s, 10.0) for s in slats_group(detail=True, incline=0.0).children)
     lug_tip = g.belt_back_radius() - p.LUG_DEPTH
     assert nearest == approx(lug_tip + p.RAIL_ARM_OFFSET[0], abs=1e-3)   # 3.95, under the arm
 
@@ -445,7 +455,8 @@ def test_c11_every_printed_part_fits_the_bed(part, name, rotation):
     (liner(1), p.PRINT_ROT_LINER[1], -70.0), (liner(-1), p.PRINT_ROT_LINER[-1], -70.0),   # the flange's outer face
     (meter_clamp(), p.PRINT_ROT_METER_CLAMP, 0.0),                                         # its mating face
     (hopper_foot(1), p.PRINT_ROT_HOPPER_FOOT, 0.0), (corner_cleat(), p.PRINT_ROT_CORNER_CLEAT, 0.0),
-    (rail_bridge(), p.PRINT_ROT_RAIL_BRIDGE, -p.RAIL_ARM_LEN / 2),                         # its headward face
+    (station_arm(), p.PRINT_ROT_STATION, -p.RAIL_ARM_LEN / 2),                             # its headward face
+    (station_post(), p.PRINT_ROT_STATION, -p.RAIL_ARM_LEN / 2),
 ])
 def test_print_rotation_puts_the_stated_face_down(part, rotation, bottom):
     assert (Rot(*rotation) * part).bounding_box().min.Z == approx(bottom)
@@ -462,7 +473,7 @@ def test_carry_rail_prints_groove_up():
 def test_d1_hopper_mass():
     mass, t, offset = hopper_mass()
     assert p.HOPPER_MASS_RANGE[0] <= mass <= p.HOPPER_MASS_RANGE[1]
-    assert (t, offset) == approx((78.3, 61.9), abs=1.0)
+    assert (t, offset) == approx((79.6, 61.6), abs=1.0)   # rail A to 177 and the split station: spec-skirts
 
 
 def test_mass_properties_of_two_boxes():
@@ -473,21 +484,22 @@ def test_mass_properties_of_two_boxes():
 
 
 def test_d2_doubled_load_is_under_the_ceiling():
-    """Frame, drive, hopper and a full load, doubled. With pin B at 125 the
-    drive took the 30 N the hopper spec left for a motor and D2 passed by
-    0.04 N; pin B at 140 gives 40 N back -- README "Pin B at 140"."""
+    """Frame, drive, hopper, skirts and a full load, doubled (spec-skirts M2).
+    With pin B at 125 the drive took the 30 N the hopper spec left for a
+    motor and D2 passed by 0.04 N; pin B at 140 gave 40.3 N back -- README
+    "Pin B at 140" -- and the skirts' 0.32 kg spends 14.5 of it."""
     forces = [g.prop_force(a, g.doubled(prop_loads(a))) for a in GRID]
     assert max(forces) <= p.PROP_FORCE_MAX
-    assert forces[0] == max(forces) == approx(209.7, abs=0.1)
-    assert p.PROP_FORCE_MAX - forces[0] == approx(40.3, abs=0.1)
+    assert forces[0] == max(forces) == approx(224.2, abs=0.1)
+    assert p.PROP_FORCE_MAX - forces[0] == approx(25.8, abs=0.1)
 
 
 def test_d2_the_load_helps_at_steep_angles():
     """The load's centroid is behind the hinge's line of action at 55. The
     spec's 98 -> 110 N at 25 and about 29 N at 55 were before the drive and
-    before pin B moved; now 94.7 -> 104.8 and 30.0."""
-    assert g.prop_force(p.TILT_MIN, prop_loads(p.TILT_MIN)) == approx(104.8, abs=1.0)
-    assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) == approx(30.0, abs=1.0)
+    before pin B moved and the skirts; now 112.1 and 32.3."""
+    assert g.prop_force(p.TILT_MIN, prop_loads(p.TILT_MIN)) == approx(112.1, abs=1.0)
+    assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) == approx(32.3, abs=1.0)
     assert g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX)) < g.prop_force(p.TILT_MAX, prop_loads(p.TILT_MAX, False))
 
 

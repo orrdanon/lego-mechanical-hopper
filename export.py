@@ -6,7 +6,7 @@ from pathlib import Path
 from build123d import Part, Rot, export_stl
 
 import params as p
-from parts.carry_rail import carry_rail, rail_bridge
+from parts.carry_rail import carry_rail, carry_rail_b
 from parts.coupons import bearing_coupon, guide_coupon, ring_coupon
 from parts.hinge import hinge_block, hinge_bracket
 from parts.motor_bracket import motor_bracket
@@ -16,6 +16,7 @@ from parts.prop import base_pin_block, frame_clevis, knob, prop_body, prop_foot
 from parts.shaft_set import shaft_set
 from parts.slat import slat
 from parts.spacer import spacer
+from parts.station import skirt_upright, station_arm, station_post
 
 OUT_DIR = Path(__file__).resolve().parent / "out"
 
@@ -42,7 +43,18 @@ def hopper_prints() -> list[tuple[Part, str, tuple[float, float, float]]]:
         (hopper_foot(-1), "hopper_foot_L", p.PRINT_ROT_HOPPER_FOOT),
         (corner_cleat(), "corner_cleat", p.PRINT_ROT_CORNER_CLEAT),
         (carry_rail(), "carry_rail", p.PRINT_ROT_CARRY_RAIL),
-        (rail_bridge(), "rail_bridge", p.PRINT_ROT_RAIL_BRIDGE),
+    ]
+
+
+def skirts_prints() -> list[tuple[Part, str, tuple[float, float, float]]]:
+    """(part, name, print rotation) of the printed parts of spec-skirts §4:
+    rail B, and the stations. Print six posts and three arms (one set of
+    each is the hopper's, at 88.5) and four uprights."""
+    return [
+        (carry_rail_b(), "carry_rail_b", p.PRINT_ROT_CARRY_RAIL),
+        (station_post(), "station_post", p.PRINT_ROT_STATION),
+        (station_arm(), "station_arm", p.PRINT_ROT_STATION),
+        (skirt_upright(), "skirt_upright", p.PRINT_ROT_UPRIGHT),
     ]
 
 
@@ -52,7 +64,8 @@ def printed_parts() -> list[tuple[Part, str, tuple[float, float, float]]]:
     mechanism's printed parts (spec-tilt §8.4; R is the machine's +z side,
     the right-hand one looking from tail to head), the pillow block and
     spacer (spec-pillow-blocks §1; four of each), the motor bracket
-    (spec-drive §8) and the hopper's (hopper_prints()). Bought parts
+    (spec-drive §8), the hopper's (hopper_prints()) and the skirts'
+    (skirts_prints()). Bought parts
     (shafts, bearings, motor, coupler, belts, brushes, the cross-member,
     bolts, nuts, the rod), plywood, the base reference, the hopper's cavity
     and reference/ are never written."""
@@ -75,7 +88,7 @@ def printed_parts() -> list[tuple[Part, str, tuple[float, float, float]]]:
         (spacer(), "spacer", p.PRINT_ROT_SPACER),
         (bearing_coupon(), "bearing_coupon", p.PRINT_ROT_COUPON),
         (motor_bracket(), "motor_bracket", p.PRINT_ROT_MOTOR_BRACKET),
-    ] + hopper_prints()
+    ] + hopper_prints() + skirts_prints()
 
 
 def export_all() -> list[Path]:

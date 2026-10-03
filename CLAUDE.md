@@ -10,8 +10,9 @@ shaft sets, shafts, belts and the slats placed round the whole loop, and the
 tilt spec the adjustable incline (hinge, cross-member, screw prop),
 the pillow-block spec the printed bearing housings, bearings and spacers,
 the drive spec the stepper, coupler and motor bracket on the head shaft,
-and the hopper spec the hopper, its brushes and a carry rail under it.
-Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
+the hopper spec the hopper, its brushes and a carry rail under it, and the
+skirts spec the side skirts, the rail run on to the head and the split
+support stations. Phase 2 is superseded by the skirts spec.
 
 ## Spec authority
 
@@ -38,6 +39,10 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   pillow blocks and the drive; its provisional block envelope is replaced
   by the real blocks). It changes no built part; it adds the `hopper`
   group and turns `prop_force()`'s single weight into a list of loads.
+  Skirts: `spec-skirts.md` (written against baseline v5). It supersedes
+  phase 2's skirts and posts, and changes three built parts: the cleat
+  (74 -> 73), the hopper's carry rail (ends at a joint at 177, side
+  inserts) and its rail bridge (replaced by a split station).
 - If a new rev or phase spec file appears, check its own header for what it
   supersedes and diffs against, and treat it the same way.
 
@@ -49,10 +54,9 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   inter-slat gap (README "Inter-slat gap"); every rev B §5 assertion is checked by both `checks.py`
   and `tests/`, with drivetrain-spec §6.3's numbers where the guide lug and
   the 3.6mm tab depth moved them.
-- **Phase 2 (skirts, posts): not built.** Only the bridge-plate subset of
-  its parameters and `plate_top_offset()`/`plate_t()` exist, because phase
-  4 needs them. Skirt and post parameters are still rev B's provisional
-  block.
+- **Phase 2 (skirts, posts): superseded by spec-skirts.** Its bridge-plate
+  subset is built (phase 4); its skirt and post geometry was replaced
+  wholesale.
 - **Phase 3 (profile, belt, pulley): superseded by the drivetrain spec.**
   There is no `parts/pulley.py` and never will be; the pulleys are part of
   the shaft set.
@@ -120,13 +124,23 @@ Phase 2 (skirts, posts) is specified but not yet built beyond its parameters.
   140 (body 90 -> 92, rod 136 -> 128): the doubled force at 25 deg is now
   209.7 N -- README "Pin B at 140". `docs/design-baseline-v5.md` describes
   the machine with the drive, the hopper and pin B at 140.
+- **Skirts: done in CAD, nothing printed or cut.** `parts/skirt.py` (6 ply
+  strips, cut list), `parts/station.py` (post, arm, skirt upright),
+  `carry_rail(t0, t1, free_ends)` with `carry_rail_b()`, the `skirts` group,
+  and the skirts' mass in `prop_loads()`. `CLEAT_LENGTH` is 73 (0.79 cleat
+  to skirt or liner at worst-case play). The station at 88.5 replaced the
+  hopper's one-piece rail bridge (spec D5, the user's reading to confirm).
+  Resolutions in `README.md` ("Skirt resolutions"). The doubled prop force
+  at 25 deg is 224.2 N, 25.8 N under `PROP_FORCE_MAX`. The design
+  baselines predate it; v5's 0.29 and 209.7 N are out of date.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), the drive tests D1-D5 and `DRIVE_SIDE`, and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
   guide coupon, first shaft set, set-up, creep test, in that order. README
   "Parameters awaiting physical calibration" lists what each step settles.
   Then hopper-spec §11 H1-H7; measure the strip brush before printing
-  either clamp, and weigh a litre of parts (`LOAD_BULK_DENSITY`).
+  either clamp, and weigh a litre of parts (`LOAD_BULK_DENSITY`). Then
+  spec-skirts §11 S1-S6, after H2.
 
 If a later phase or revision changes the picture, this list is the thing to
 update once the migration is done.
@@ -153,7 +167,8 @@ docs/specs/               the phase specs
   spec-tilt.md              adjustable incline: hinge, cross-member, clevis, prop, base reference (current)
   spec-pillow-blocks.md     printed pillow blocks, 608ZZ, spacer tubes, bearing coupon (current)
   spec-drive.md             NEMA 17 stepper, flexible coupler, motor bracket, head shaft length (current)
-  hopper-spec-v1.md         the hopper, its brushes, the carry rail and bridge (current)
+  hopper-spec-v1.md         the hopper, its brushes, the carry rail and bridge (current; rail and bridge changed by spec-skirts)
+  spec-skirts.md            side skirts, carry rail to the head, split support stations (current)
 reference/                third-party source models, unmodified, never written or imported (CC BY-ND)
 README.md                 setup, usage, and the recorded spec resolutions
 params.py                 single source of truth for every dimension
@@ -180,16 +195,18 @@ parts/prop.py             printed: frame_clevis, prop_body, prop_foot, knob, bas
 parts/hardware.py         bought M8 nuts, washer, rod, pin_bolt (reference solids); hex_prism() cuts every hex pocket
 parts/base_ref.py         the base, OPEN: a placeholder slab for clearance checks, never exported
 parts/hopper.py           printed liners, clamps, feet, corner cleat; plywood panels and walls (cut list); hopper_cavity()
-parts/carry_rail.py       printed: carry_rail (the guide wheel's groove run straight) and rail_bridge
+parts/carry_rail.py       printed: carry_rail(t0, t1, free_ends), the guide wheel's groove run straight; rail A and carry_rail_b()
+parts/station.py          printed: station_post, station_arm (both rails sit between its cheeks), skirt_upright
+parts/skirt.py            plywood skirt strip, mirror pair (reference solid, cut list)
 parts/brush.py            bought strip brush: backing and bristles, reference solids
 assembly.py               GROUPS dict of positioned Compounds; `python assembly.py [group ...] [--detail] [--incline=N] [--report]`
 cut_list.py               writes out/cut_list.txt: the plywood parts (end plates with the pillow-block holes, the hopper's
-                          boards as corner coordinates), the tilt's cross-member and rod, both shafts
+                          boards as corner coordinates), the tilt's cross-member and rod, both shafts, the skirt strips
 utils.py                  bbox/volume/contains/clash/distance helpers used by checks & tests; level_fill(), mass_properties()
 checks.py                 human-facing runner of every acceptance assertion from the specs; its hopper helpers are imported by tests/
 tests/                    the same assertions as pytest tests
 export.py                 writes out/*.stl: both slats, shaft_set, three coupons, the tilt's nine printed parts, pillow_block,
-                          spacer, motor_bracket, and the hopper's nine
+                          spacer, motor_bracket, the hopper's eight, and the skirts' carry_rail_b, station_post/arm, skirt_upright
 ```
 
 ## Conventions
@@ -230,7 +247,7 @@ export.py                 writes out/*.stl: both slats, shaft_set, three coupons
 - **Adding a part to the machine** means one `<name>_group(detail, takeup, incline)`
   function in `assembly.py` returning a positioned Compound, one `GROUPS`
   entry and one `COLOURS` entry. Nothing else should need touching.
-- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2; spec-pillow-blocks §5; spec-drive §8; hopper-spec §8) are the contract:
+- Acceptance criteria in the specs (rev B §5 substituted per rev C §5; phase 4 §8; drivetrain §4.4, §6.3, §12; spec-tilt §8.2; spec-pillow-blocks §5; spec-drive §8; hopper-spec §8; spec-skirts §8) are the contract:
   they're expressed both as `checks.py` (human-facing pass/fail output)
   and as the `tests/` pytest suite. Keep both in sync with whichever spec
   revision is current.
@@ -271,12 +288,11 @@ angle scale. The take-up mechanism must stay out of the hinge's space
 (rail outer faces t = -60..-20 and outboard).
 
 Per rev B §6, phase 4 §1 and drivetrain-spec §1, §15: the tail take-up
-jacking screw, side skirts and posts. The hopper is built; the skirt spec starts at its
-front wall's outer face (t = 136) with the same inset, gap and height, and
-needs no posts on the plate at 88.5, which the rail bridge now uses. Per spec-drive
+jacking screw. Per spec-skirts §6.5: the discharge; the skirts end square
+at 350 and a chute spec may trim or extend them. Per spec-drive
 §10: the driver's wiring and supply, the controller, and a coupler cover. Their parameters may exist in `params.py` for later phases to
 reference, but don't build the parts themselves until their phase. The
-skirts no longer guide anything; when specified, their gap can open to 2.0.
+skirts guide nothing (the rails' grooves do); their gap may open to 2.0.
 Don't build the creep-test fallback (keyed pin through the belt land)
 unless the physical test fails.
 No shaft collars (spec-pillow-blocks §1.1): the spacers and the blocks'

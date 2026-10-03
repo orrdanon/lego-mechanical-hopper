@@ -67,6 +67,7 @@ python3 assembly.py plates pillow_blocks drivetrain drive              # the mot
 python3 assembly.py "drivetrain:tail shaft" "drivetrain:tail shaft set"   # single members
 python3 assembly.py drivetrain belts "slats:slat ?" --detail               # real slats 0-9 only
 python3 assembly.py frame plates slats hopper   # the hopper over the carrying run
+python3 assembly.py plates slats hopper skirts   # and the skirts, rail B and stations on to the head
 python3 assembly.py --incline=55    # the whole machine tilted; INCLINE (40) if not given
 python3 assembly.py --report        # no viewer: each group's members, and the bought hardware
 ```
@@ -97,13 +98,13 @@ python3 checks.py
 
 Prints one line per acceptance check from rev B §5, phase 4 §8,
 drivetrain-spec §4.4 and §12, spec-tilt §8.2, spec-pillow-blocks §5,
-spec-drive §8 and hopper-spec §8, and exits non-zero if any
+spec-drive §8, hopper-spec §8 and spec-skirts §8, and exits non-zero if any
 fail. It takes about four minutes, most of it the whole-loop clearance sweep,
 which runs at three take-ups and three inclines. It ends with the
 **setting-up table** (spec-tilt §8.3): prop length and exposed rod against
 incline, which is how the angle gets set by hand -- see "Tilt" below --
 then the hopper's table of wall slopes, level fill, rim heights and prop
-force every 2.5 degrees. This is the same set of assertions as the
+force every 2.5 degrees, and the skirts' mass and tight pairs. This is the same set of assertions as the
 pytest suite, just human-facing. A check listed in `_EXPECTED_FAILURES`
 prints `XFAIL` with its recorded reason instead of failing the run, and
 prints `XPASS` and fails the run if it unexpectedly passes -- that is the
@@ -144,22 +145,27 @@ The drive adds `motor_bracket` (print one, foot down, no support; see
 bought and not exported.
 
 The hopper adds `hopper_liner_R/L`, `seal_clamp`, `metering_clamp`,
-`hopper_foot_R/L` (print two of each), `corner_cleat` (print eight),
-`carry_rail` and `rail_bridge` (hopper-spec §9.9). The seal clamp prints on
-its end; see "Brush clamps" below.
+`hopper_foot_R/L` (print two of each), `corner_cleat` (print eight) and
+`carry_rail` (rail A; hopper-spec §9.9). The seal clamp prints on its end;
+see "Brush clamps" below.
+
+The skirts add `carry_rail_b`, `station_post` (print six), `station_arm`
+(print three) and `skirt_upright` (print four); one set of posts and an arm
+is the hopper's station at 88.5, which replaced its `rail_bridge`
+(spec-skirts §4).
 
 Every printed part fits the printer, a **Bambu Lab P1S** (`PRINT_BED` = 256
 x 256 x 256), in its print orientation, and `checks.py` holds all of them to
-it (hopper-spec C11 asked it of every printed part). The largest are the
-bearing coupon, 150 long, and the rail bridge, 128.
+it (hopper-spec C11 asked it of every printed part). The largest are
+rail B, 152.75 long, the bearing coupon, 150, and rail A, 146.75.
 
 The frame and shafts are owned or bought hardware, the belt and brushes are
-bought, and the bridge plates and the hopper's panels and walls are cut from
-plywood, so none is exported as STL. `python3 cut_list.py` writes
+bought, and the bridge plates, the hopper's panels and walls and the skirts
+are cut from plywood, so none is exported as STL. `python3 cut_list.py` writes
 `out/cut_list.txt` with the plate rectangle and hole positions, the tilt's
 cross-member (2020, 234), its prop rod (M8, 128), the two shafts (tail 145,
-head 140) and the hopper's four boards as corner and hole coordinates
-instead.
+head 140), the hopper's four boards as corner and hole coordinates, and the
+two skirt strips instead.
 
 ## The assembly framework (phase 4)
 
@@ -355,6 +361,8 @@ with 2 L (`LOAD_BULK_DENSITY`, then rerun D2/D3); and run the thinnest parts
 looking under the liner edges and at the seal. **Measure the strip brush
 before printing either clamp** -- `BRUSH_BACKING_W/H` and `BRUSH_FREE_LEN`
 are guesses at a door sweep.
+
+Then the skirts', spec-skirts §11 S1-S6, after H2: see "Skirts" below.
 
 ### Inter-slat gap (2026-09-21)
 
@@ -752,9 +760,10 @@ tail plate and take-up are untouched, and none of it rides the tail plate.
 
 `parts/hopper.py` builds everything in hopper coordinates (t, h, z), h above
 the slat top face, and `geometry.hopper_offset(h)` turns an h into an
-`at()` offset. `parts/carry_rail.py` has the rail and its bridge to the
-plate at 88.5, `parts/brush.py` the two strip brushes as reference solids.
-`assembly.py`'s `hopper` group places all 26 members; `hopper_parts()`
+`at()` offset. `parts/carry_rail.py` has the rail (rail A since
+spec-skirts, now ending at 177), `parts/station.py` the station at 88.5
+that holds it up, `parts/brush.py` the two strip brushes as reference
+solids. `assembly.py`'s `hopper` group places all 28 members; `hopper_parts()`
 takes `meter_gap` and `rail_raise` for the checks, and
 `hopper_cavity_placed()` is the capacity reference solid, never in a group.
 
@@ -763,15 +772,17 @@ hopper, from `checks.py`'s table:
 
 | Incline | Level fill | Rim over base, front / back | Prop, empty / full / doubled |
 |---|---|---|---|
-| 25° | 2.04 L | 277 / 309 | 101 / 105 / 210 N |
-| 40° | 2.40 L | 289 / 289 | 59 / 57 / 114 N |
-| 55° | 1.87 L | 282 / 250 | 35 / 30 / 60 N |
+| 25° | 2.04 L | 277 / 309 | 108 / 112 / 224 N |
+| 40° | 2.40 L | 289 / 289 | 63 / 61 / 122 N |
+| 55° | 1.87 L | 282 / 250 | 37 / 32 / 65 N |
 
-The prop forces include the frame estimate and the drive. The hopper weighs
-0.95 kg (solid PETG, 0.60 g/cm³ plywood, two brushes and 60 g of hardware),
-close to the spec's 1.0 kg ceiling. **Doubled, the prop force at 25° is
-209.7 N, 40.3 N under `PROP_FORCE_MAX`**, with pin B moved to 140 for it:
-see "Hopper and drive together" below and "Pin B at 140".
+The prop forces include the frame estimate, the drive and, since
+spec-skirts, the skirts. The hopper weighs 0.956 kg (solid PETG, 0.60 g/cm³
+plywood, two brushes and 60 g of hardware), close to the spec's 1.0 kg
+ceiling. Doubled, the prop force at 25° was 209.7 N with the hopper, 40.3 N
+under `PROP_FORCE_MAX`, with pin B moved to 140 for it (see "Hopper and
+drive together" below and "Pin B at 140"); **with the skirts it is
+224.2 N, 25.8 N under**.
 
 `--report` lists the hopper's bought hardware (`params.HOPPER_HARDWARE`);
 the brushes are the only bought parts modelled as solids. The physical tests
@@ -904,8 +915,99 @@ shrinks. Weighing the frame and a litre of parts (`TILT_WEIGHT_N`,
 - **Bolt holes and hardware.** Holes are modelled where the spec names them
   (feet, cleats, clamps, rail and bridge); the fasteners themselves are only
   listed. The foot's two M4 are at ±8.5 along the run to clear the M5
-  counterbore, and the M3 x 8 up through the bridge's 16 arm is counterbored
-  from below to leave 3.0 of grip.
+  counterbore. (The bridge's M3 up through its arm went with the bridge:
+  spec-skirts fixes the rails through the arm's cheeks into side inserts.)
+
+## Skirts
+
+`docs/specs/spec-skirts.md`. The skirts continue the hopper's channel from
+the front wall's outer face (t = 136) to t = 350: 6 ply strips, inner face
+at `SKIRT_INSET` (38) over the slat ends, bottom edge `SKIRT_GAP` (1.5) over
+the slat top, top at `SKIRT_HEIGHT` (28). The carry rail now runs the whole
+carrying run as two rails, A (the hopper's, 30 .. 176.75) and B
+(177.25 .. 330), meeting on the station at 177, so the lugs are in a groove
+everywhere but on and next to the wheels and the slats land on the rail
+instead of sagging away from the skirts. `CLEAT_LENGTH` went 74 -> 73, so
+the cleat ends clear the skirts and the liners by 1.5, and **0.79** at
+worst-case lug play (was 0.29).
+
+The rails stand on **split support stations** on the three middle plates:
+two posts outboard of the returning run (`parts/station.py`), and an arm
+across them between the runs, its two cheeks holding the rail ends, with
+M3s through one cheek into the rails' side inserts. At 177 and 265.5 a skirt
+upright stands on each end of the arm, and one M3 x 60 clamps upright, arm
+and post together. The skirt's outer face lands on the uprights at z = 44,
+so its countersunk M4 heads lie flush in the channel face.
+
+**Fitting** (spec-skirts §5.2): posts on the plates; belt on and tensioned;
+each arm slid in sideways between the runs onto its posts (at 88.5 with the
+hopper's +z side panel, its liner and feet off); rail A lowered between the
+belts 3.0 headward of its place with the metering clamp off and its slats
+unclipped, then slid back under the seal clamp, then rail B straight down;
+slats back against the teeth; uprights; skirts. A one-piece bridge, which
+the hopper first had, is a ring the belt loop passes through and could
+only go in with the belt off.
+
+`assembly.py`'s `skirts` group holds rail B, the two stations with their
+uprights and both skirts (13 members); the `hopper` group keeps rail A and
+the station at 88.5. Together they weigh 0.315 kg at t = 229, which is in
+the prop force: **doubled at 25°, 224.2 N, 25.8 N under `PROP_FORCE_MAX`**.
+`--report` lists the bought hardware (`params.SKIRTS_HARDWARE`), and the
+cut list the two strips.
+
+Physical tests, spec-skirts §11, after H2: S1 fitting with the belt on;
+S2 lugs across the joint at 177, no click; S3 slats land on rail B at
+mid-span; S4 feeler-gauge the skirt gap and the cleat-end gap; S5 a litre
+of parts at three angles, nothing over, under or wedged; S6 weigh the parts.
+
+## Skirt resolutions
+
+Where spec-skirts could not be followed to the letter, or left a choice,
+resolved per the convention in `CLAUDE.md`.
+
+### The station at 88.5 (D5)
+
+The spec retrofits the hopper's one-piece rail bridge to the split station,
+recording that the user approved split stations without ruling on the
+retrofit. It is built that way: one part family at all three stations, and
+none that needs the belt off. To keep the bridge instead, restore
+`rail_bridge()` at 88.5 and give rail A's 88.5 inserts back to its bottom.
+
+### Derived values that need geometry
+
+`UPRIGHT_CBORE_DEPTH` (§3.3) depends on the skirt top's offset, which is the
+slat-top station plus `SKIRT_HEIGHT`; `params.py` cannot import `geometry`.
+It is `parts/station.upright_cbore_depth()` (7.947), with `upright_height()`
+and `post_height()` beside it, and a test holds the screw stack to
+`UPRIGHT_SCREW_LEN`. S1 and S2 use `slat_lateral_play()` and are checks,
+as the spec says.
+
+### Smaller readings
+
+- **Labels.** Rail A keeps the label `carry rail`, so the hopper's C1-C3
+  read it unchanged; rail B is `carry rail B`. Station members are labelled
+  by station: `station arm at 177`, `skirt upright -z at 265.5`.
+- **K2 at the skirt ends.** The spec's 0.31 at t = 350 is a sharp top
+  corner swept at radius 24.47. The real slat's edge chamfers keep it 0.53
+  from the skirts, measured at twelve belt positions per pitch round the
+  head (`head_arc_skirt_clearance()`).
+- **K3.** With the slats pushed their play, a cleat end is 0.79 from a liner
+  and from a skirt alike, the same channel face; the check accepts either.
+- **T3, the arm's path**, is checked against every hopper part except the
+  ones §5.2 takes off at 88.5 (the +z panel, liner and feet), not only the
+  frame, plates and loop: stronger than the spec asks. The control leaves
+  the panel on and must clash.
+- **T4, rail A's path**, includes every hopper part except the metering
+  clamp and brush; the slide back along the cheeks is checked as a box from
+  the arm tops to the lands over the whole slid length.
+- **Controls with numbers of their own:** R5 runs rail B to
+  `RAIL_B_T1_CONTROL` (345), and T4 lowers the rails from
+  `RAIL_FIT_TOP_OFFSET` (60, above every slat and cleat).
+- **The joint relief** is a 45° chamfer of `RAIL_JOINT_RELIEF` on every top
+  edge of the joint end face: the lands, the flanks and the groove floor.
+- **M2, M3** are the hopper's D2 and D3: `prop_loads()` carries the skirts'
+  mass now, so those checks are the skirts' too. The hopper's own mass rose
+  to 0.956 kg with rail A to 177, still within D1.
 
 ## Missing parameters
 
@@ -930,7 +1032,10 @@ clearances, `GRAVITY`, the `TILT_TOTAL_*` combination and `DRIVE_HARDWARE`.
 The hopper added the M4 and M3 sizes, the check limits of its §8, the
 corner cleat's and the clamps' own dimensions (`CORNER_CLEAT_*`,
 `SEAL_CLAMP_*`, `METER_CLAMP_*`, `METER_BOLT_*`), the bridge's pads and bolt
-positions, and `BRUSH_BRISTLE_T` for the reference solid.
+positions, and `BRUSH_BRISTLE_T` for the reference solid. The skirts added
+`STATION_T`, `SKIRT_STATIONS`, the R5 and T4 controls' `RAIL_B_T1_CONTROL`
+and `RAIL_FIT_TOP_OFFSET`, `PRINT_ROT_STATION`/`_UPRIGHT` and
+`SKIRTS_HARDWARE`.
 
 ## Provisional parameters
 
