@@ -7,16 +7,19 @@ plywood bridge plates as its first two groups; the drivetrain spec added
 the tooth profile, the printed shaft sets, shafts, belts and the slats
 running round both ends; the tilt spec made the incline adjustable by hand
 over 25..55 degrees, with a hinge, a cross-member and a screw prop; the
-hopper spec added the hopper, its brushes and a carry rail under it. See the
-`phase*-cad-spec*.md` files, `drivetrain-spec.md`, `spec-tilt.md` and
-`hopper-spec-v1.md` in `docs/specs/`: each phase depends on the earlier
+hopper spec added the hopper, its brushes and a carry rail under it; the
+skirts spec the side skirts, the carry rail on to the head and the split
+support stations. See the `phase*-cad-spec*.md` files, `drivetrain-spec.md`,
+`spec-tilt.md`, `hopper-spec-v1.md` and `spec-skirts.md` in `docs/specs/`: each phase depends on the earlier
 ones, and each rev diffs against the previous one rather than replacing it.
 
 For a single self-contained summary of what is built and decided, written
 for readers outside the project and as the input to new specifications, see
-`docs/design-baseline-v5.md`. Its numbers are taken from `params.py`:
+`docs/design-baseline-v6.md`. Its numbers are taken from `params.py`:
 regenerate them when parameters change. The earlier versions are frozen
 snapshots kept as the reference of the spec written against each:
+`docs/design-baseline-v5.md` (commit `8192562`, the input to spec-skirts,
+before the skirts, rail B and the split stations),
 `docs/design-baseline-v4.md` (commit `9461b13`, with the pillow blocks,
 before the drive, the hopper and pin B at 140),
 `docs/design-baseline-v3.md` (commit `ca50e1a`, before the pillow blocks) for

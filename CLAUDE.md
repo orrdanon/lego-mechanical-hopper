@@ -131,8 +131,8 @@ support stations. Phase 2 is superseded by the skirts spec.
   to skirt or liner at worst-case play). The station at 88.5 replaced the
   hopper's one-piece rail bridge (spec D5, the user's reading to confirm).
   Resolutions in `README.md` ("Skirt resolutions"). The doubled prop force
-  at 25 deg is 224.2 N, 25.8 N under `PROP_FORCE_MAX`. The design
-  baselines predate it; v5's 0.29 and 209.7 N are out of date.
+  at 25 deg is 224.2 N, 25.8 N under `PROP_FORCE_MAX`.
+  `docs/design-baseline-v6.md` describes the machine with the skirts.
 - Open: the base and its fasteners, `TILT_WEIGHT_N` (weigh the frame),
   the pillow-block tests B1-B4 (bearing coupon first; they are independent
   of the belt), the drive tests D1-D5 and `DRIVE_SIDE`, and the whole of drivetrain-spec §13 -- belt measurement, ring coupon, saddle fit,
@@ -148,8 +148,9 @@ update once the migration is done.
 ## Repo layout
 
 ```
-docs/design-baseline-v5.md  self-contained as-built summary for external spec writers (current: drive, hopper, pin B at 140);
+docs/design-baseline-v6.md  self-contained as-built summary for external spec writers (current: with the skirts, rail B, split stations);
                           derived from params.py -- regenerate its numbers when params change
+docs/design-baseline-v5.md  the same at commit 8192562, the input to the skirts spec; frozen, superseded by v6
 docs/design-baseline-v4.md  the same at commit 9461b13, with the pillow blocks; frozen, superseded by v5
 docs/design-baseline-v3.md  the same at commit ca50e1a, the input to the pillow-block spec; frozen, superseded by v4
 docs/design-baseline-v2.md  the same at commit ad71c0e, the input to the tilt spec; frozen, superseded by v3
