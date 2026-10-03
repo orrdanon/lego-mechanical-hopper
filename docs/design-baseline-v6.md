@@ -1,57 +1,46 @@
-# Feed elevator: design baseline, v5
+# Feed elevator: design baseline, v6
 
-> **Frozen, superseded by `design-baseline-v6.md`.** Kept as written: it was
-> current from the drive, the hopper and pin B at 140 until the skirts, the
-> carry rail to the head and the split stations. Do not update it; v6 is the
-> reference for new work.
-
-Status as of 2026-10-02, the merge of branch `followups` onto `f01b5b8`
-(the hopper merge). All dimensions are millimetres and degrees.
+Status as of 2026-10-03, commit `3a08dce` (the merge of branch `skirts`).
+All dimensions are millimetres and degrees.
 
 This document describes what has been built and decided so far, so that
 specifications for the **remaining parts of the machine** can be written
-against it: side skirts and their posts, the tail take-up, the discharge and
-the base. It is self-contained: it replaces `design-baseline-v4.md` (and v3,
-v2, v1) and the specification files as the reference for new work. Where a
-number here and an older document disagree, this document (and `params.py`,
-which it is taken from) is correct.
+against it: the tail take-up, the discharge and the base. It is
+self-contained: it replaces `design-baseline-v5.md` (and v4 .. v1) and the
+specification files as the reference for new work. Where a number here and
+an older document disagree, this document (and `params.py`, which it is
+taken from) is correct.
 
-**What changed since v4.** v4 described the machine with its pillow blocks;
-the drive and hopper specifications had been written against v3. Both are
-now built in CAD, and the prop moved to carry them:
+**What changed since v5.** The side skirts are built
+(`docs/specs/spec-skirts.md`, §9), and with them:
 
-1. **The head shaft is driven** by a NEMA 17 stepper through a 5 × 8
-   flexible coupler, on a printed motor bracket on the head bridge plate
-   (`docs/specs/spec-drive.md`, §6.2). The head shaft is cut **140**, long
-   on its drive end; the tail shaft stays 145. Which side the motor goes on
-   (`DRIVE_SIDE`) is **open**; every check builds both.
-2. **The hopper is built** (`docs/specs/hopper-spec-v1.md`, §8): a
-   frame-mounted V-trough on the straight carrying run, t = 12 .. 136, with
-   a seal brush at t = 28, a metering brush at the front wall, liners that
-   are the first section of side skirt, and a **carry rail** under the
-   slats that takes the pile's weight and guides them under it.
-3. **Prop pin B moved from bx = 125 to 140** (§7.3). With the drive and a
-   full hopper, the doubled prop force at 25° had reached 249.96 N of the
-   250 N ceiling; standing the prop more upright brings it to 209.7 N. The
-   prop body is 92 (was 90), the rod 128 (was 136), the stroke 65.2 (was
-   56.4), about 52 knob turns (was 45).
-4. **The prop force is a sum of loads**, each (mass, t, offset): the frame
-   estimate, the drive and the hopper, and the hopper's fill of LEGO.
-5. **The printer is a Bambu Lab P1S**, 256 × 256 × 256; every printed part
-   fits it in its print orientation.
+1. **Side skirts** continue the hopper's channel unchanged (inset 38, gap
+   1.5 over the slat top, 28 high) from the front wall's outer face,
+   t = 136, to t = 350: 6 ply strips on printed uprights.
+2. **The carry rail runs the whole carrying run**, as rail A (the hopper's,
+   now 30 .. 176.75) and rail B (177.25 .. 330), joined on the station at
+   177. The slats' lugs are in a groove everywhere but on and next to the
+   wheels, so the ±0.71 lateral play holds along the whole run.
+3. **Support stations are split**: two posts on the plate, an arm across
+   them between the runs, slid in sideways with the belt on. The hopper's
+   one-piece rail bridge at 88.5 was replaced by one. The rails are fixed
+   by side screws through the arms' cheeks, not from below.
+4. **`CLEAT_LENGTH` is 73.0** (was 74.0): the cleat ends clear the skirts
+   and the hopper's liners by 1.5, **0.79** at worst-case play (was 0.29).
+5. **The skirts weigh 0.315 kg**, in the prop force: doubled at 25°,
+   **224.2 N, 25.8 N of margin** (was 209.7 N, 40.3 N).
 
-Nothing on the conveyor moved: every datum of §2 to §6.1 in v4 still holds,
-and v4's and v3's other changes stand.
+Nothing else on the conveyor moved: every other datum of v5 still holds.
 
 Every value is labelled one of:
 
 - **fixed** - decided and implemented; changing it invalidates built and tested geometry
 - **catalogue** - a published figure for a bought part, not yet measured on the real one
-- **provisional** - a starting guess, expected to be tuned; §10 says what settles each
+- **provisional** - a starting guess, expected to be tuned; §11 says what settles each
 - **open** - not decided; input wanted
 
 **Nothing has been printed or physically tested yet.** Everything below is
-CAD that passes its own checks. §10 lists the physical tests, in order, that
+CAD that passes its own checks. §11 lists the physical tests, in order, that
 stand between this model and a working machine.
 
 ---
@@ -89,6 +78,10 @@ of a hopper and drops them off the head end.
 - A **hopper** on the frame, over the carrying run near the tail, holds 1.9 ..
   2.4 L of loose LEGO; the cleats draw parts out from under the pile and a
   metering brush lets one cleat pocket's worth past at a time.
+- From the hopper to the head, **side skirts** keep parts on the slats, and
+  a **carry rail** under the whole carrying run supports the slats and
+  guides their lugs, on printed **support stations** on the three middle
+  bridge plates.
 
 | Item | Status |
 |---|---|
@@ -106,13 +99,14 @@ of a hopper and drops them off the head end.
 | Tilt: M8 bolts, nuts, washers | reference solids; listed by `assembly.py --report` |
 | Drive: motor bracket | modelled, checked, STL exported; not yet printed |
 | Drive: NEMA 17 stepper, flexible coupler | reference solids (bought); listed by `assembly.py --report` |
-| Hopper: liners (mirror pair), seal and metering clamps, feet (2 mirror pairs), corner cleats (8), carry rail, rail bridge | modelled, checked, STL exported; not yet printed |
+| Hopper: liners (mirror pair), seal and metering clamps, feet (2 mirror pairs), corner cleats (8), carry rail A | modelled, checked, STL exported; not yet printed |
 | Hopper: side panels (2), back wall, front wall | plywood; reference solids; on the cut list as corner and hole coordinates |
 | Hopper: strip brushes (2) | reference solids (bought); listed by `assembly.py --report` |
-| Assembly | frame, plates, drivetrain, belts, all 46 slats round the whole loop, the tilt, pillow blocks, bearings and spacers, the drive, the hopper, at any incline |
+| Skirts: carry rail B, station posts (6) and arms (3, one the hopper's at 88.5), skirt uprights (4) | modelled, checked, STL exported; not yet printed |
+| Skirts: two strips, 6 ply | plywood; reference solids; on the cut list |
+| Assembly | frame, plates, drivetrain, belts, all 46 slats round the whole loop, the tilt, pillow blocks, bearings and spacers, the drive, the hopper, the skirts, at any incline |
 | **Base** | **open; a placeholder slab for clearance checks only** |
 | **Tail take-up mechanism (jacking screw)** | **travel decided and clash-checked; mechanism not designed** |
-| **Side skirts and skirt posts** | **specified once (phase 2) against superseded numbers; not built; needs re-specifying from the hopper's front wall, see §9** |
 | **Discharge** | **not designed** |
 | **`DRIVE_SIDE`** | **open; both sides are built and checked** |
 
@@ -212,7 +206,11 @@ under the bearing axis, in the bearing centre plane, +z outboard (the -z
 block is the same part turned 180° about y). Bearing: on the axis at mid-width.
 Spacer: on the axis at the face that meets the bearing. Hopper parts are
 laid out in **hopper coordinates** (t, h, z), h above the slat top face, and
-placed with `at(t, hopper_offset(h), z)` (§8).
+placed with `at(t, hopper_offset(h), z)` (§8). Station post and skirt
+upright: bottom face at the inner face (z = ±44), centred on the station,
++z outboard (the -z one turned 180° about y); station arm: bottom face,
+centre plane; rail: land plane, centre plane, at its tail end; skirt: inner
+face at its bottom edge, at t = 136 (the -z strip a mirror image) (§9).
 
 ### 2.4 The base frame: `base_frame(incline)`
 
@@ -283,7 +281,7 @@ belt model sits in the pulley groove.
 ## 4. The slat
 
 Printed, 46 off: 23 plain and 23 cleated. **Do not treat the slat as frozen**
-until the saddle and guide fits in §10 pass; but nothing new should be
+until the saddle and guide fits in §11 pass; but nothing new should be
 specified that requires changing it.
 
 ### 4.1 Body and cleat
@@ -294,10 +292,10 @@ specified that requires changing it.
 | Slat body | 17.0 along the run × 3.0 thick × 80.0 across the machine | width provisional |
 | Gap between adjacent slats on a straight run | 1.0 | provisional, follows the width |
 | Gap between adjacent slats round a pulley | opens to 2.96 at the bottom corners, 5.7 at the top faces | derived |
-| Cleat | every 2nd slat; 12.0 high, 10.0 wide at the root tapering to 4.0 at the tip, 74.0 long, 1.0 root fillets | height provisional |
+| Cleat | every 2nd slat; 12.0 high, 10.0 wide at the root tapering to 4.0 at the tip, **73.0 long** (z = ±36.5; was 74.0, spec-skirts), 1.0 root fillets | height provisional |
 | Edge chamfer | 0.5 | fixed |
 | Bounding box, plain / cleated | 17 × 7 × 80 / 17 × 19 × 80 | derived |
-| Volume, plain / cleated | 4.54 / 10.76 cm³ | derived |
+| Volume, plain / cleated | 4.54 / 10.68 cm³ | derived |
 | Print orientation | top face down; tabs and lug up | fixed |
 
 The slat count must stay an integer (`828 / 18 = 46`) and even, so the cleat
@@ -351,11 +349,11 @@ constraint: the slats locate the belts, the guide locates the slats.
 | Clearance to the groove, normal to each flank | `GROOVE_FLANK_CLEAR` | 0.5 | provisional |
 | **Lateral play of a slat before a flank engages** | | **±0.71** | derived |
 
-The lug is engaged only while a slat is on a pulley, about three slats per
-shaft at any moment. **Along the straight runs nothing constrains the slats
-laterally except the belts' own stiffness.** Whether the carrying run needs
-more than that is untested, and is a question for the skirt work (§9).
-Under the hopper the carry rail (§8) now gives the same ±0.71.
+The lug runs in a wheel groove while its slat is on a pulley, and **along
+the carrying run in the carry rails' groove**, from t = 30 to 330 (§9), the
+same section cut by the same code, so the play is the same ±0.71. It is
+free only on the returning run and for about 25 between each wheel and the
+end of a rail, where the belts' stiffness holds it.
 
 ---
 
@@ -457,7 +455,7 @@ the **bearing coupon**, is made by the pillow block's pocket code (§6.1).
 | Frame | 2020 extrusion rectangle, 552 long × 274 wide overall, 234 between rails | fixed, owned, uncut |
 | Frame position along the run | from t = -60 to t = 492; 138 of frame beyond the head shaft | fixed |
 | Bridge plates | five, 9 plywood, 45 along the run × 274 across, on top of both rails, M5 into T-nuts at x = ±12, z = ±127; the end two also have 4 × Ø5.0 at x = ±14, z = ±40.25 for the pillow blocks | fixed |
-| Plate stations | t = 0, 88.5, 177, 265.5, 354; the end two carry the pillow blocks, the head one the motor bracket too; the hopper's rail bridge stands on 88.5; 177 and 265.5 are free for skirt posts | fixed |
+| Plate stations | t = 0, 88.5, 177, 265.5, 354; the end two carry the pillow blocks, the head one the motor bracket too; the middle three carry the support stations (§9), the one at 88.5 inside the hopper | fixed |
 | Tail take-up travel | `TAIL_TAKEUP_MIN` .. `_MAX` = -4.0 (toward the head, to fit the belt) .. +2.0 (away, to tension) | provisional |
 
 **Along each shaft, from the centre outwards:**
@@ -527,7 +525,7 @@ bearing toward its open side against the press fit alone.
 
 The **bearing coupon** is a 150 × 40 × 8.5 bar with five pockets cut by the
 same code as the block at rib tips 21.6 .. 22.0, labelled, printed lip down
-like the block. It is test B1 (§10).
+like the block. It is test B1 (§11).
 
 Bought per machine: 4 (buy 6) × 608ZZ, 8 × M4 heat-set inserts, 8 × M4 × 16
 socket-head screws, 8 × M4 washers.
@@ -617,15 +615,15 @@ below the run, on the clevis's open side.
 `prop_length(incline)` (pin to pin), its inverse `incline_for_length(L)`,
 `prop_turns`, `prop_lean`, `prop_exposed_rod` and `prop_force`.
 
-| Incline | Prop length, pin to pin | Exposed rod (lock nut to jam nut) | Turns from 25° | Lean from vertical | Prop force, frame and drive | With a full hopper |
+| Incline | Prop length, pin to pin | Exposed rod (lock nut to jam nut) | Turns from 25° | Lean from vertical | Prop force, frame and drive | With the hopper (full) and skirts |
 |---|---|---|---|---|---|---|
-| 25° | 152.6 | 6.0 | 0 | 48.4° | 95 N | 105 N |
-| 30° | 161.7 | 15.1 | 7.2 | | 79 N | 85 N |
-| 35° | 171.7 | 25.1 | 15.3 | | 67 N | 69 N |
-| 40° | 182.6 | 36.0 | 24.0 | 26.1° | 58 N | 57 N |
-| 45° | 194.0 | 47.4 | 33.1 | | 50 N | 47 N |
-| 50° | 205.8 | 59.2 | 42.5 | | 43 N | 38 N |
-| 55° | 217.9 | 71.3 | 52.2 | 8.4° | 37 N | 30 N |
+| 25° | 152.6 | 6.0 | 0 | 48.4° | 95 N | 112 N |
+| 30° | 161.7 | 15.1 | 7.2 | | 79 N | 91 N |
+| 35° | 171.7 | 25.1 | 15.3 | | 67 N | 74 N |
+| 40° | 182.6 | 36.0 | 24.0 | 26.1° | 58 N | 61 N |
+| 45° | 194.0 | 47.4 | 33.1 | | 50 N | 50 N |
+| 50° | 205.8 | 59.2 | 42.5 | | 43 N | 41 N |
+| 55° | 217.9 | 71.3 | 52.2 | 8.4° | 37 N | 32 N |
 
 `checks.py` prints this every 2.5°; the exposed-rod column is what gets
 measured with calipers to set an angle on the real machine. Prop length is
@@ -648,13 +646,15 @@ is the frame and the drive:
 |---|---|---|---|
 | Frame | 3.47 kg (`TILT_WEIGHT_N` = 34 N) | (220, -40) | **estimate**, until the frame is weighed |
 | Drive | 0.37 kg | (354, 0), the head shaft | estimate |
-| Hopper, rail, bridge, brushes, hardware | 0.95 kg | (78.7, 62.2), from the solids | PETG solid, 0.60 g/cm³ plywood |
+| Hopper, rail A, its station, brushes, hardware | 0.956 kg | (79.6, 61.6), from the solids | PETG solid, 0.60 g/cm³ plywood |
 | LEGO, level fill | 0.94 .. 1.20 kg (0.50 kg/L) | its centroid at each angle (§8) | provisional density |
+| Skirts, rail B, two stations, uprights, hardware | 0.315 kg | (229.0, 4.7), from the solids | PETG solid, 0.60 g/cm³ plywood |
 
 The worst case is 25°. The ceiling `PROP_FORCE_MAX` is 250 N, and every
-load doubled must pass it: **209.7 N** with a full hopper (189.3 N for the
-frame and drive alone), so **40.3 N of margin**. The prop stays in
-compression at every angle, empty or full: least 30 N, at 55° full (≥ 10 asserted). **Any mass a later
+load doubled must pass it: **224.2 N** with a full hopper and the skirts
+(209.7 N without the skirts, 189.3 N for the frame and drive alone), so
+**25.8 N of margin**. The prop stays in compression at every angle, empty
+or full: least 32 N, at 55° full (≥ 10 asserted). **Any mass a later
 spec hangs on the frame ahead of the hinge eats that margin** and must be
 added to the loads.
 
@@ -692,22 +692,22 @@ Heights in the hopper are **h, above the slat top face** (offset 22.947):
 | Item | Value | |
 |---|---|---|
 | Extent along the run | back wall at t = 19.6 (h = 0) leaning to 36.1 at the rim; front wall inner face t = 130, outer 136 | provisional |
-| Channel | the liners' lower walls, z = ±38 (`SKIRT_INSET`), from h = 1.5 (`SKIRT_GAP`) to 28 (`SKIRT_HEIGHT`): **the first section of side skirt**; cleat to liner 1.0, 0.29 at worst-case play | provisional, inherited by name |
+| Channel | the liners' lower walls, z = ±38 (`SKIRT_INSET`), from h = 1.5 (`SKIRT_GAP`) to 28 (`SKIRT_HEIGHT`): **the first section of side skirt**, continued by the skirts (§9); cleat to liner 1.5, 0.79 at worst-case play | provisional, inherited by name |
 | Flare | 45° from the run normal out to the side panels at z = ±108; 50.1° from horizontal at 25°, 66.1° at 55° | provisional |
 | Back wall | 85° to the run (55° from horizontal at 40°, 40° at 55°), through the seal brush's root line | provisional |
 | Rim | horizontal at 40°: h = 110 at the front wall, 188.8 at the back | provisional |
 | Seal brush | strip brush, tips at t = 28, 2.0 below the slat top, raked 15° headward; root 10.15 above the cleat tips | provisional |
 | Metering brush | tips 14.0 above the slat top (cleats pass 2.0 under), slotted clamp 6 .. 26 | provisional |
-| Carry rail | t = 30 .. 140, the guide wheel's rim zone and groove run straight (same code), lands 0.5 under the slats; the lug in its groove gives the carrying run ±0.71 under the hopper | provisional |
-| Rail bridge | an arm between the runs at offset -12 .. +4, t = 76.5 .. 100.5, on two posts at z = ±44 .. ±54 bolted through the plate at 88.5 | provisional |
+| Carry rail A | t = 30 .. 176.75, the guide wheel's rim zone and groove run straight (same code), lands 0.5 under the slats; joint with rail B on the station at 177 (§9) | provisional |
+| Station at 88.5 | the split station of §9: two posts at z = ±44 .. ±54 bolted through the plate, an arm between the runs at offset -12 .. +4, t = 76.5 .. 100.5; replaced the one-piece rail bridge | provisional |
 | Feet | 4, printed, on the rail top faces at t = 46 and 126, z = ±105 .. ±137, each holding a side panel's bottom edge in a slot, M5 into the rail's top slot | provisional |
 | Capacity, level fill | 2.04 L at 25°, 2.40 at 40°, 1.87 at 55° | derived |
-| Mass | 0.95 kg with rail, bridge, brushes and hardware | derived |
+| Mass | 0.956 kg with rail A, its station, brushes and hardware | derived |
 
 **Space taken:** on the frame from t = 12 to 140; up to the rim, 250 .. 310
 above the base; across to z = ±117 above the rail tops, and the feet to
-z = ±137 on them; inside the loop, the rail bridge at 88.5 between the runs.
-The plate at 88.5 is not free for a skirt post.
+z = ±137 on them; inside the loop, the station's arm at 88.5 between the
+runs.
 
 Bought: two strip brushes (nylon door sweep, cut to 75), M5 × 12 + T-nuts,
 M4 and M3 screws, inserts and grubs (`assembly.py --report`). Plywood: two
@@ -715,49 +715,52 @@ side panels (9), back and front walls (6), on the cut list.
 
 ---
 
-## 9. What is known about the parts still to be specified
+## 9. Side skirts, carry rails and support stations
 
-### 9.1 Side skirts and posts
+Specified in `docs/specs/spec-skirts.md`, built in CAD, nothing printed or
+cut. **On the frame**, placed with `at(..., incline)`; none of it is on the
+tail plate. The `skirts` group holds rail B, the stations at 177 and 265.5
+with their uprights, and both skirts; rail A and the station at 88.5 are
+the `hopper` group's.
 
-An earlier specification (phase 2) exists for plywood side skirts on posts
-standing on the three middle bridge plates. **It was written before the belt
-was changed, before the belt-back correction and before the guide was added,
-and none of it is built.** Treat it as intent, not as numbers. What carries
-over:
+| Item | Value | |
+|---|---|---|
+| Skirts | 6 ply strips, 214 × 26.5, t = 136 .. 350; inner face z = ±38 (`SKIRT_INSET`), h = 1.5 (`SKIRT_GAP`) to 28 (`SKIRT_HEIGHT`), so they continue the hopper's channel exactly; outer face at z = ±44; 0.5 chamfer on the inner bottom edge | provisional |
+| Skirt fixing | 2 × M4 countersunk per upright, heads flush in the channel face, at h = 7 and 21, nylocks outboard | provisional |
+| Slat end under the skirt | 2.0 nominal, **1.29** at worst-case play (slat ends z = ±39.29 .. ±40.71) | derived |
+| Cleat end to skirt or liner | 1.5 nominal, **0.79** at worst-case play | derived |
+| Skirt head end | t = 350: slats rounding the head pass 0.53 under it | provisional |
+| Rail A / rail B | t = 30 .. 176.75 / 177.25 .. 330, 0.5 joint gap on the station at 177; free ends lead in at 45°, joint ends a 0.5 relief | provisional |
+| Rail fixing | M3 heat-set inserts in the rails' +z side face at 6 either side of each station (rail A 82.5, 94.5, 171; rail B 183, 259.5, 271.5); M3 × 8 through the arm's cheek | provisional |
+| Rail B to the head guide wheel | 4.9 (≥ 3.0 asserted) | derived |
+| Stations | on the plates at 88.5, 177, 265.5. **Posts**, 6: z = ±44 .. ±54, plate top to offset -12, pads to ±64 through-bolted 2 × M4; 2 × M3 inserts in each post top. **Arms**, 3: offset -12 .. +4, t ±12, z ±54, with two cheeks 2.5 thick at z = ±8.2 .. ±10.7 up to offset 12, 0.2 off the rail sides | provisional |
+| Skirt uprights | 4, at 177 and 265.5: z = ±44 .. ±54 on the arm ends, offset 4 to 50.95; one M3 × 60 each side clamps upright, arm and post | provisional |
+| Returning run | posts and arms ≥ 3.0 from every returning slat, cleat and belt; the arms' underside 3.95 above the returning lug tips | derived |
+| Mass | 0.315 kg at (229.0, 4.7), in the prop force (§7.3) | derived |
 
-| Parameter | Name | Value | |
-|---|---|---|---|
-| Skirt height above the slat top | `SKIRT_HEIGHT` | 28.0 | provisional |
-| Skirt bottom edge to slat top | `SKIRT_GAP` | 1.5 | provisional; may open to 2.0 |
-| Skirt inner face from the centreline | `SKIRT_INSET` | 38.0, so each skirt overlaps the slat end by 2.0 | provisional |
+**Fitting, with the belt on** (spec-skirts §5.2). Posts on the plates; belt
+on and tensioned; each arm slid in sideways between the runs onto its posts
+(at 88.5 with the hopper's +z side panel, its liner and feet off); rail A
+lowered between the belts 3.0 headward of its place, with the metering
+clamp off and the slats over it unclipped, then slid back under the seal
+clamp, which reaches t = 32.3; rail B straight down; slats back, against
+the teeth; uprights; skirts. A one-piece bridge is a ring the belt loop
+passes through, so it can only go in with the belt off.
 
-What is new and must be allowed for:
+**Space taken:** above the slats, z = ±38 .. ±54 from t = 136 to 350 up to
+h = 28 (the skirts and uprights); inside the loop, the rails at |z| ≤ 10.7
+from t = 30 to 330 and the arms at the three stations; on the plates at
+88.5, 177 and 265.5, z = ±44 .. ±64. Nothing of it reaches the head plate,
+the pillow blocks or the drive (≥ 3.0, both drive sides).
 
-- The skirts **no longer guide anything**. The V-guide does. A skirt is only
-  a wall to keep LEGO on the slats.
-- Slats have **±0.71 of lateral play**, so the slat ends run anywhere in
-  z = ±(39.29 .. 40.71).
-- The slat top is at offset **22.947**, not v1's 24.118, and the cleat tips
-  at **34.947**. Cleats are 74.0 long (z = ±37), inside the 38.0 skirt inset
-  by 1.0 per side, less the lateral play: **0.29 worst case.** This is tight
-  and should be revisited.
-- Posts must clear the **returning** run as well: slats pass under the
-  shafts at offsets -19.947 to -34.947, 80 wide plus play.
-- The tail bridge plate slides (§6); nothing fixed to the frame may assume
-  it stays at t = 0.
-- The skirts ride on the frame and tilt with it, so their geometry is the
-  same at every angle. What changes with the angle is how hard LEGO presses
-  on them and slides back over the cleats; the 12.0 cleat height was chosen
-  with 40° in mind and is untested at 55°.
-- Under the frame, the cross-member occupies t = 211 .. 231 between the
-  rails and the clevis hangs below it at z = 0 (§7.2). Posts on the middle
-  plates (t = 177, 265.5) sit above the rails and do not meet either.
-- **The hopper's liners are the first section of skirt** (§8): the skirts
-  start at the front wall's outer face, t = 136, with the same inset, gap and
-  height, and the front wall's notch sides continue the channel to there. The
-  plate at 88.5 carries the rail bridge, so no skirt post goes on it.
+Bought: M4 and M3 screws, inserts and nylocks (`assembly.py --report`,
+`SKIRTS_HARDWARE`). Plywood: the two skirt strips, on the cut list.
 
-### 9.2 Discharge
+---
+
+## 10. What is known about the parts still to be specified
+
+### 10.1 Discharge
 
 The discharge at the head end moves with the angle: the carrying surface
 over the head shaft is at (bx, by) = (328, 272) at 25° and (158, 403) at
@@ -768,7 +771,7 @@ motor stands out to z = 135.5 at the head shaft (§6.2).
 
 ---
 
-## 10. Physical tests still to be done, in order
+## 11. Physical tests still to be done, in order
 
 Nothing in the CAD checks can tell whether the model matches the real belt
 and the real printer. These can, and each gates the next.
@@ -813,17 +816,24 @@ Also still to be done, independent of the above:
   2 L bucket dumped at each angle, nothing spills; **H6** weigh the hopper
   empty and with 2 L; **H7** the thinnest parts, nothing under the liners or
   wedged at the seal.
+- Skirts (spec-skirts §11), after H2: **S1** slide the arms in and drop
+  both rails in with the belt tensioned; **S2** lugs across the joint at
+  177 with no click; **S3** press rail B's span, slats land on it and lift
+  clear; **S4** feeler-gauge the 1.5 under the skirts and the cleat ends
+  (1.5, 0.79 least); **S5** 1 L for 10 min at three angles, nothing over,
+  under or wedged, and H7's thin parts again; **S6** weigh the parts, rerun
+  the prop force.
 - Weigh the assembled frame and find its balance point along the run:
   `TILT_WEIGHT_N`, `TILT_CG_T`, `TILT_CG_OFFSET`, and a level litre of mixed
   parts (`LOAD_BULK_DENSITY`). Until then the prop force is an estimate, and
-  its 40 N of margin at 25° is only as good as these.
+  its 26 N of margin at 25° is only as good as these.
 - Tilt fit: hinge pin running free in the printed bushing, prop eyes in their
   clevises, knob turning the rod under load. All are provisional printed
   clearances (8.4 bushing, 12.6 clevis gaps, 8.2 pin holes).
 
 ---
 
-## 11. The CAD project a specification has to fit
+## 12. The CAD project a specification has to fit
 
 Python, [build123d](https://github.com/gumyr/build123d) 0.11 (OpenCascade),
 at the repo root. Layers, each importing only from the ones above it in this
@@ -832,10 +842,10 @@ table:
 | Layer | Holds | Returns |
 |---|---|---|
 | `params.py` | every dimension, plus assertions tying them together | numbers |
-| `geometry.py` | datums and placement: run direction, shaft axes, `at(t, offset, lateral, incline)`, `loop_at(s, takeup, incline)`, `tail_shaft_t(takeup)`, the radial stations of §2.3 as functions, `is_cleated(i)`, plate and frame datums; for the tilt `hinge_axis`, `base_frame`, `base_z`, `height_above_base` and the prop functions of §7.3, with `machine_loads()` for the force; for the hopper `hopper_offset(h)`, `rim_h`, the back wall plane, the wall slopes and `run_coords` | numbers, transforms; never a solid |
+| `geometry.py` | datums and placement: run direction, shaft axes, `at(t, offset, lateral, incline)`, `loop_at(s, takeup, incline)`, `tail_shaft_t(takeup)`, the radial stations of §2.3 as functions, `is_cleated(i)`, plate and frame datums; for the tilt `hinge_axis`, `base_frame`, `base_z`, `height_above_base` and the prop functions of §7.3, with `machine_loads()` for the force; for the hopper `hopper_offset(h)`, `rim_h`, the back wall plane, the wall slopes and `run_coords`; `slat_lateral_play()` | numbers, transforms; never a solid |
 | `profile.py` | the belt tooth and the standard pulley groove; `pulley_section()` is the only thing that makes teeth | 2D edges and faces; never a solid |
-| `parts/*.py` | one module per part: `slat`, `shaft_set`, `shaft`, `belt`, `coupons`, `frame` (with the cut `cross_member`), `bridge_plate`, `hinge`, `prop`, `hardware` (bought M8 parts), `base_ref`, `pillow_block`, `bearing`, `spacer`, `motor`, `coupler`, `motor_bracket`, `hopper` (its printed and plywood parts and the cavity), `carry_rail`, `brush` | a solid in its own local frame; never a machine position |
-| `assembly.py` | named groups of positioned parts: `frame`, `plates`, `drivetrain`, `belts`, `slats`, `tilt`, `pillow_blocks`, `bearings`, `spacers`, `drive`, `hopper`; every group takes `takeup` and `incline` | positioned compounds |
+| `parts/*.py` | one module per part: `slat`, `shaft_set`, `shaft`, `belt`, `coupons`, `frame` (with the cut `cross_member`), `bridge_plate`, `hinge`, `prop`, `hardware` (bought M8 parts), `base_ref`, `pillow_block`, `bearing`, `spacer`, `motor`, `coupler`, `motor_bracket`, `hopper` (its printed and plywood parts and the cavity), `carry_rail` (both rails), `brush`, `station` (post, arm, skirt upright), `skirt` | a solid in its own local frame; never a machine position |
+| `assembly.py` | named groups of positioned parts: `frame`, `plates`, `drivetrain`, `belts`, `slats`, `tilt`, `pillow_blocks`, `bearings`, `spacers`, `drive`, `hopper`, `skirts`; every group takes `takeup` and `incline` | positioned compounds |
 
 Rules a new part specification should respect:
 
@@ -851,7 +861,7 @@ Rules a new part specification should respect:
    bounding boxes, volume ranges, points that must be inside or outside the
    solid, pairs of solids that must not intersect, validity of the solid.
    Each one is implemented twice, in `checks.py` (pass/fail report) and as a
-   pytest test. Currently 68 checks and 416 tests, all passing.
+   pytest test. Currently 81 checks and 467 tests, all passing.
 5. **A negative control must be able to fail.** One drivetrain check asked
    that a zero-clearance guide groove collide with the lug; a straight lug
    only *touches* a revolved groove of its own section, sharing no volume, so
@@ -868,10 +878,10 @@ Rules a new part specification should respect:
 9. **Say how each part leaves the project**: printed parts are exported as
    STL in a stated print orientation (so far: both slats, the shaft set,
    three coupons, nine tilt parts, the pillow block, the spacer, the motor
-   bracket and nine hopper parts), and must fit `PRINT_BED`, a Bambu Lab
+   bracket, eight hopper parts and four skirts parts), and must fit `PRINT_BED`, a Bambu Lab
    P1S, 256 × 256 × 256; bought or cut parts are reference solids only;
    plywood and cut metal (the cross-member, the M8 rod, the shafts, the
-   hopper's boards) go on the cut list; bought hardware is listed by
+   hopper's boards, the skirt strips) go on the cut list; bought hardware is listed by
    `assembly.py --report`.
 10. Adding a part to the machine is one group function in `assembly.py`, one
    entry in its group table and one colour. If a part needs more than that,
@@ -893,20 +903,15 @@ real slat copies it and is slow; shift the other part instead.
 
 ---
 
-## 12. Open questions for the next specifications
+## 13. Open questions for the next specifications
 
-1. **Skirts.** Given §9.1: from the hopper's front wall at t = 136 to the
-   head, with the hopper's inset, gap and height (or a change agreed for
-   both); whether the 0.29 worst-case cleat-to-skirt clearance is acceptable
-   or the cleat length or skirt inset should move; and how they end at the
-   head (discharge). The plate at 88.5 is taken by the rail bridge.
-2. **Lateral support on the carrying run.** The guide acts at the two
-   pulleys and, under the hopper, along the carry rail (t = 30 .. 140). Is
-   that enough from 140 to the head shaft, or should the rail run on (the
-   hopper spec allows the skirt spec to extend it)?
-3. **Belt support.** Under the hopper the carry rail takes the pile's
-   weight. From t = 140 to the head nothing supports the carrying run; with
-   one cleat pocket of parts per slat this may be fine.
+1. ~~Skirts.~~ **Built** (§9): the hopper's inset, gap and height carried
+   on to t = 350, the cleats shortened to 73 for 0.79 at worst-case play.
+   How they meet the discharge is part of Q10.
+2. ~~Lateral support on the carrying run.~~ **Closed**: the carry rails'
+   groove from t = 30 to 330 (§9).
+3. ~~Belt support.~~ **Closed**: the rails' lands, 0.5 under the slats,
+   over the same span (§9). Physical tests S2, S3 confirm it.
 4. ~~Pillow blocks and standoffs.~~ **Closed**: printed blocks, shaft
    height fixed at 48.0 (§6.1).
 5. **Take-up mechanism.** A jacking screw for the tail plate within the
@@ -925,7 +930,7 @@ real slat copies it and is slow; shift the other part instead.
    and close again onto the return run. Whether a part can be carried into
    that gap and pinched, and whether discharge needs a stripper or brush.
 10. **Discharge.** Where the parts go from the head end, given that the
-    discharge point moves 170 × 130 over the tilt range (§9.2). Whether that
+    discharge point moves 170 × 130 over the tilt range (§10.1). Whether that
     argues for a narrower range.
 11. **The base.** What the machine stands on (board, extrusion frame, bench),
     its footprint (the hinge blocks stand at z = ±148 .. ±168, the frame's
@@ -935,7 +940,7 @@ real slat copies it and is slow; shift the other part instead.
     prop's travel, lowers the worst-case force (at 25°) and shrinks the
     discharge and tail movement. What incline the sorter actually needs is
     not known yet.
-13. **Prop margin.** 40 N under the 250 N ceiling at 25°, doubled, on
+13. **Prop margin.** 26 N under the 250 N ceiling at 25°, doubled, on
     estimated masses. Anything added ahead of the hinge spends it; beyond
     pin B at about 145 the screw prop cannot follow, so a bigger need means a
     new prop design, a stronger printed eye (a higher ceiling) or a higher
