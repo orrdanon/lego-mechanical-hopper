@@ -18,7 +18,7 @@ def test_assembly_builds_only_named_groups():
 
 def test_assembly_rejects_unknown_group():
     with pytest.raises(ValueError) as exc:
-        assembly("skirts")
+        assembly("discharge")
     assert "frame" in str(exc.value) and "plates" in str(exc.value)
 
 
@@ -44,16 +44,17 @@ def test_cut_list_lists_the_plate():
 
 
 def test_export_writes_every_printed_part():
-    """drivetrain-spec §14.5, spec-tilt §8.4, spec-pillow-blocks §1, spec-drive §8, hopper-spec §9.9.
+    """drivetrain-spec §14.5, spec-tilt §8.4, spec-pillow-blocks §1, spec-drive §8, hopper-spec §9.9, spec-skirts §9.
     Bought parts, plywood, the base reference, the hopper's cavity and
     reference/ are never written."""
     paths = export_all()
     assert sorted(path.stem for path in paths) == [
-        "base_pin_block", "bearing_coupon", "carry_rail", "corner_cleat", "frame_clevis", "guide_coupon",
+        "base_pin_block", "bearing_coupon", "carry_rail", "carry_rail_b", "corner_cleat", "frame_clevis", "guide_coupon",
         "hinge_block_L", "hinge_block_R", "hinge_bracket_L", "hinge_bracket_R", "hopper_foot_L", "hopper_foot_R",
         "hopper_liner_L", "hopper_liner_R", "knob", "metering_clamp", "motor_bracket", "pillow_block", "prop_body",
-        "prop_foot", "rail_bridge", "ring_coupon", "seal_clamp", "shaft_set", "slat_cleated", "slat_plain", "spacer",
-    ]   # with the printed parts of spec-tilt §8.4, spec-pillow-blocks §1, spec-drive §8 and hopper-spec §9.9
+        "prop_foot", "ring_coupon", "seal_clamp", "shaft_set", "skirt_upright", "slat_cleated", "slat_plain", "spacer",
+        "station_arm", "station_post",
+    ]   # with the printed parts of spec-tilt §8.4, spec-pillow-blocks §1, spec-drive §8, hopper-spec §9.9, spec-skirts §9
     for path in paths:
         assert path.parent.name == "out"
         assert path.stat().st_size > 0

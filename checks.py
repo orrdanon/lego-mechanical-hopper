@@ -17,11 +17,12 @@ from assembly import (
     COLOURS, GROUPS, assembly, bearings_group, belts_group, drive_group, drivetrain_group, frame_group,
     pillow_blocks_group, plates_group, slats_group, spacers_group, tilt_base_parts, tilt_frame_parts, tilt_group,
     tilt_prop_parts,
-    hopper_cavity_placed, hopper_group, hopper_parts,
+    hopper_cavity_placed, hopper_group, hopper_parts, skirts_group, skirts_parts,
 )
 from parts.bearing import bearing
 from parts.belt import belt_band, belt_segment, belt_wrapped
 from parts.bridge_plate import bridge_plate
+from parts.carry_rail import RAIL_A, RAIL_B, carry_rail, rail_insert_t
 from parts.coupler import coupler
 from parts.coupons import bearing_coupon, bearing_coupon_pocket_x, guide_coupon, ring_coupon
 from parts.frame import frame
@@ -33,6 +34,8 @@ from parts.shaft import shaft
 from parts.shaft_set import shaft_set, shaft_set_with
 from parts.slat import pulley_envelope, slat
 from parts.spacer import spacer
+from parts.station import skirt_upright, station_arm, station_post
+from parts.skirt import skirt
 from profile import groove_half, groove_junctions, pulley_section, tooth_face, tooth_half
 from utils import _box_gap, _overlap_volume, bbox_size, clash, contains, distance_within, level_fill, mass_properties, min_distance, volume_cm3
 
@@ -184,7 +187,7 @@ def _check_assembly_framework():
     assert set(assembly("frame").keys()) == {"frame"}
     assert set(COLOURS) == set(GROUPS)
     try:
-        assembly("skirts")
+        assembly("discharge")
     except ValueError:
         pass
     else:
@@ -341,16 +344,17 @@ _TAKEUPS = (p.TAIL_TAKEUP_MIN, 0.0, p.TAIL_TAKEUP_MAX)
 def _check_whole_loop_clearances():
     """The expensive one. Real slat geometry, every slat, against every
     drivetrain part, plate, tilt part, pillow block and spacer, the
-    drive on either side, and every hopper part but the bristles, across
-    the take-up range and the tilt range (spec-tilt §8.1, which is also
-    its T6; spec-pillow-blocks §4; spec-drive §8.12, §8.15; hopper-spec C1)."""
+    drive on either side, every hopper part but the bristles and every
+    skirts part, across the take-up range and the tilt range (spec-tilt
+    §8.1, which is also its T6; spec-pillow-blocks §4; spec-drive §8.12,
+    §8.15; hopper-spec C1; spec-skirts K2)."""
     for incline in p.TILT_CHECK_ANGLES:
         for takeup in _TAKEUPS:
             fixed = [
                 part
                 for group in (drivetrain_group, plates_group, tilt_group, pillow_blocks_group, spacers_group)
                 for part in group(takeup=takeup, incline=incline).children
-            ] + _drive_parts(takeup, incline) + hopper_fixed(incline)
+            ] + _drive_parts(takeup, incline) + hopper_fixed(incline) + skirts_parts(incline)
             for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
                 for part in fixed:
                     assert not clash(s, part), f"{s.label} hits {part.label} at takeup {takeup}, incline {incline}"
@@ -931,12 +935,14 @@ def hopper_slat_clearance(takeup: float = 0.0, shift: float = 0.0) -> tuple[floa
     return best
 
 
-def slats_over_rail(takeup: float = 0.0, incline: float = p.INCLINE) -> list:
-    """The carrying-run slats whose lugs lie wholly over the carry rail."""
+def slats_over_rail(takeup: float = 0.0, incline: float = p.INCLINE, rail=RAIL_A) -> list:
+    """The carrying-run slats whose lugs lie wholly over a carry rail, rail
+    A by default; `rail` is a (t0, t1, free_ends) of parts/carry_rail.py."""
     over = []
+    t0, t1 = rail[:2]
     for s in slats_group(detail=True, takeup=takeup, incline=incline).children:
         t, offset, _ = g.run_coords(s.location.position, incline)
-        if offset > 0 and p.RAIL_T0 <= t - p.LUG_LENGTH / 2 and t + p.LUG_LENGTH / 2 <= p.RAIL_T1:
+        if offset > 0 and t0 <= t - p.LUG_LENGTH / 2 and t + p.LUG_LENGTH / 2 <= t1:
             over.append(s)
     return over
 
@@ -976,9 +982,10 @@ def hopper_fill(incline: float = p.INCLINE, rim_front_h: float = p.RIM_FRONT_H) 
 
 
 def prop_loads(incline: float = p.INCLINE, full: bool = True) -> list[tuple[float, float, float]]:
-    """The frame, the drive, the hopper and, if `full`, its level fill of LEGO at
-    LOAD_BULK_DENSITY, as prop_force() loads (§7.3)."""
-    loads = g.machine_loads() + [hopper_mass()]
+    """The frame, the drive, the hopper, the skirts (spec-skirts §7) and, if
+    `full`, the hopper's level fill of LEGO at LOAD_BULK_DENSITY, as
+    prop_force() loads (§7.3)."""
+    loads = g.machine_loads() + [hopper_mass(), skirts_mass()]
     if full:
         litres, t, offset = hopper_fill(incline)
         loads.append((litres * p.LOAD_BULK_DENSITY, t, offset))
@@ -1072,9 +1079,10 @@ def _check_hopper_parts():
     assert 35.0 <= volume_cm3(liner) <= 55.0
     assert abs(volume_cm3(parts["liner -z"]) - volume_cm3(liner)) < 1e-6
     rail = in_hopper(parts["carry rail"])
-    assert all(abs(a - b) < 0.02 for a, b in zip(bbox_size(rail), (110.0, 15.447, 16.0)))
-    assert 18.0 <= volume_cm3(rail) <= 28.0
-    assert 40.0 <= volume_cm3(parts["rail bridge"]) <= 80.0
+    assert all(abs(a - b) < 0.02 for a, b in zip(bbox_size(rail), (p.RAIL_T1 - p.RAIL_T0, 15.447, 16.0)))
+    assert 27.0 <= volume_cm3(rail) <= 35.0                     # spec-skirts §4.1, rail A to the joint at 177
+    station = [label for label in parts if label.startswith("station")]
+    assert sorted(station) == ["station arm at 88.5", "station post +z at 88.5", "station post -z at 88.5"]
 
 
 def _check_capacity():
@@ -1205,14 +1213,26 @@ def _check_hopper_tilt():
                 assert distance_within(part, other, need) >= need, f"{part.label} / {other.label} at {incline}"
 
 
-def _check_rail_bridge():
-    """C10: the bridge against the returning run, at all nine cases."""
+def station_members(incline: float = p.INCLINE) -> list:
+    """Every station's posts and arm, the 88.5 one the hopper's and the
+    other two the skirts' (spec-skirts T1)."""
+    return [
+        part for part in hopper_parts(incline) + skirts_parts(incline)
+        if part.label.startswith(("station post", "station arm"))
+    ]
+
+
+def _check_stations_clear_the_returning_run():
+    """Hopper C10, extended to every station by spec-skirts T1: posts and
+    arms against the returning run, at all nine cases."""
     for incline in p.TILT_CHECK_ANGLES:
-        bridge = _hopper_by_label(incline)["rail bridge"]
+        members = station_members(incline)
+        assert len(members) == 3 * len(p.STATION_T)
         for takeup in _TAKEUPS:
             loop = slats_group(detail=True, takeup=takeup, incline=incline).children + belts_group(incline=incline).children
-            for part in loop:
-                assert distance_within(bridge, part, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, f"{part.label} at {incline}, {takeup}"
+            for member in members:
+                d = min_distance(member, loop, p.HOPPER_CLEAR)
+                assert d >= p.HOPPER_CLEAR, f"{member.label}: {d:.2f} at {incline}, {takeup}"
 
 
 def _check_print_bed():
@@ -1233,9 +1253,334 @@ def _check_hopper_loads():
             assert g.prop_force(incline, prop_loads(incline, full)) >= p.PROP_FORCE_MIN, f"at {incline}"
 
 
+# --- spec-skirts §8 ----------------------------------------------------------------------
+
+SKIRT_PLYWOOD = ("skirt +z", "skirt -z")   # the skirts members cut from plywood; the rest print in PETG
+_HEAD_PHASES = tuple(p.SLAT_PITCH * i / 12 for i in range(12))   # finer than _PHASES: corners rounding the head
+
+
+def _skirts_by_label(incline: float = p.INCLINE, **kwargs) -> dict:
+    return _by_label(skirts_parts(incline, **kwargs))
+
+
+@cache
+def skirts_mass() -> tuple[float, float, float]:
+    """(kg, t, offset) of the skirts group: every solid at its material's
+    density and SKIRTS_HARDWARE_MASS at their centre (spec-skirts §7, M1)."""
+    solids = skirts_parts(_RUN)
+    densities = [p.PLY_DENSITY if part.label in SKIRT_PLYWOOD else p.PETG_DENSITY for part in solids]
+    _, centre = mass_properties(solids, densities)
+    mass, centre = mass_properties(solids, densities, [(p.SKIRTS_HARDWARE_MASS, centre)])
+    t, offset, _ = g.run_coords(centre, _RUN)
+    return mass, t, offset
+
+
+@cache
+def skirt_slat_clearance(takeup: float = 0.0, shift: float = 0.0) -> tuple[float, str, str]:
+    """(distance, slat, part) of the nearest slat to any hopper part but the
+    bristles or any skirts part, with every slat moved `shift` across the
+    machine; with a shift both rails are left out, as their grooves are
+    what stop the slats (K3)."""
+    parts = [
+        part.moved(Location((0, 0, -shift)))
+        for part in hopper_fixed(_RUN) + skirts_parts(_RUN)
+        if not (shift and part.label.startswith("carry rail"))
+    ]
+    slats = slats_group(detail=True, takeup=takeup, incline=_RUN).children
+    best = (math.inf, "", "")
+    for s in slats:
+        for part in parts:
+            d = min_distance(s, [part], best[0] if best[0] < math.inf else 10.0)
+            if d < best[0]:
+                best = (d, s.label, part.label)
+    return best
+
+
+def head_arc_skirt_clearance() -> float:
+    """Least distance from any slat rounding the head, at belt positions a
+    twelfth of a pitch apart, to either skirt (K2 at the skirt's end)."""
+    skirts = [part for label, part in _skirts_by_label(_RUN).items() if label in SKIRT_PLYWOOD]
+    solids = {cleated: slat(cleated) for cleated in (False, True)}
+    least = math.inf
+    for phase in _HEAD_PHASES:
+        for i in range(p.SLAT_COUNT):
+            loc = g.loop_at(i * p.SLAT_PITCH + phase, 0.0, _RUN)
+            t, offset, _ = g.run_coords(loc.position, _RUN)
+            if t > p.SKIRT_T1 - p.SLAT_PITCH and offset > -p.SLAT_PITCH:
+                least = min(least, min_distance(solids[g.is_cleated(i)].moved(loc), skirts, 5.0))
+    return least
+
+
+def _check_skirt_parameters():
+    """S1-S4."""
+    play = g.slat_lateral_play()
+    assert p.SKIRT_INSET - p.CLEAT_LENGTH / 2 - play >= p.SKIRT_CLEAT_CLEAR_MIN                   # 0.79
+    assert p.SLAT_LENGTH / 2 - play - p.SKIRT_INSET >= p.SKIRT_SLAT_LAP_MIN                       # 1.29
+    assert p.SKIRT_INSET + p.SKIRT_THICKNESS == p.RAIL_POST_Z[0]
+    assert p.SKIRT_T0 == p.HOPPER_FRONT_T + p.WALL_THICKNESS
+    assert abs(p.RAIL_B_T0 - p.RAIL_T1 - p.RAIL_JOINT_GAP) < 1e-9
+    assert abs((p.RAIL_B_T0 + p.RAIL_T1) / 2 - p.STATION_T[1]) < 1e-9
+    assert all(abs(t - g.plate_t(i + 1)) < 1e-9 for i, t in enumerate(p.STATION_T))
+    for t0, t1, _ in (RAIL_A, RAIL_B):
+        inserts = rail_insert_t(t0, t1)
+        assert all(t0 + p.RAIL_INSERT_EDGE <= t <= t1 - p.RAIL_INSERT_EDGE for t in inserts)
+        for station in p.STATION_T:
+            if t0 < station < t1 or abs(station - t0) < 1 or abs(station - t1) < 1:
+                assert any(abs(t - station) <= p.RAIL_INSERT_X + 1e-9 for t in inserts), (t0, station)
+
+
+def _check_rail_b():
+    """R1 and R2 for rail B: lugs clear in its groove at every take-up,
+    contact faces 0.45 .. 0.55 over its lands, and raised 1.0 it bites."""
+    for takeup in _TAKEUPS:
+        rail = _skirts_by_label(_RUN)["carry rail B"]
+        over = slats_over_rail(takeup, _RUN, RAIL_B)
+        assert len(over) >= 7
+        assert not any(clash(s, rail) for s in over)
+    rail = _skirts_by_label()["carry rail B"]
+    for s in slats_over_rail(rail=RAIL_B):
+        d = min(face.distance_to(rail) for face in contact_faces(s))
+        assert p.RAIL_LAND_GAP[0] <= d <= p.RAIL_LAND_GAP[1], f"{s.label}: {d:.3f}"
+    raised = _skirts_by_label(rail_raise=1.0)["carry rail B"]
+    assert any(clash(s, raised, tol=1.0) for s in slats_over_rail(rail=RAIL_B))
+
+
+def _rail_extent(part) -> tuple[float, float]:
+    """A placed rail's t range, with the run along x."""
+    box = part.bounding_box()
+    return box.min.X, box.max.X
+
+
+def _check_rail_joint():
+    """R3, R4: the two rails meet at 177 with their lands and grooves in
+    line and RAIL_JOINT_GAP between them, the joint ends without the lead-in,
+    and together they cover the carrying run but for the gap."""
+    a, b = _hopper_by_label(_RUN)["carry rail"], _skirts_by_label(_RUN)["carry rail B"]
+    box_a, box_b = a.bounding_box(), b.bounding_box()
+    assert abs(box_a.max.Y - box_b.max.Y) < 0.01 and abs(box_a.max.Y - g.guide_rim_radius()) < 0.01
+    assert abs(box_a.center().Z) < 0.01 and abs(box_b.center().Z) < 0.01
+    assert abs(a.distance_to(b) - p.RAIL_JOINT_GAP) < 0.01
+    land = g.guide_rim_radius() - 0.05
+    z = p.GUIDE_WIDTH / 2 - 0.5
+    assert contains(a, (p.RAIL_T1 - 1.0, land, z)) and contains(b, (p.RAIL_B_T0 + 1.0, land, z))
+    assert not contains(a, (p.RAIL_T1 - 0.1, land + 0.03, z)) and not contains(b, (p.RAIL_B_T0 + 0.1, land + 0.03, z))
+    assert not contains(a, (p.RAIL_T0 + 1.0, land, z)) and not contains(b, (p.RAIL_B_T1 - 1.0, land, z))   # free ends lead in
+    (a0, a1), (b0, b1) = _rail_extent(a), _rail_extent(b)
+    assert abs(a0 - p.RAIL_T0) < 1e-6 and abs(b1 - p.RAIL_B_T1) < 1e-6 and b0 - a1 <= p.RAIL_JOINT_GAP + 1e-6
+    for phase in _PHASES:
+        for i in range(p.SLAT_COUNT):
+            t, offset, _ = g.run_coords(g.loop_at(i * p.SLAT_PITCH + phase, 0.0, _RUN).position, _RUN)
+            if offset > 0 and p.RAIL_T0 + p.LUG_LENGTH <= t <= p.RAIL_B_T1 - p.LUG_LENGTH:
+                lo, hi = t - p.LUG_LENGTH / 2, t + p.LUG_LENGTH / 2
+                assert (a0 <= lo and hi <= a1) or (b0 <= lo and hi <= b1) or (a0 <= lo and hi <= b1), f"slat {i} at {t:.1f}"
+
+
+def rail_shaft_set_clearance(takeup: float = 0.0, b_t1: float = p.RAIL_B_T1) -> float:
+    """Least distance from either rail to either shaft set; `b_t1` moves rail
+    B's head end, for R5's control."""
+    rails = [
+        _hopper_by_label(_RUN)["carry rail"],
+        carry_rail(p.RAIL_B_T0, b_t1, RAIL_B[2]).moved(g.at(p.RAIL_B_T0, g.guide_rim_radius(), incline=_RUN)),
+    ]
+    sets = [part for part in drivetrain_group(takeup=takeup, incline=_RUN).children if part.label.endswith("shaft set")]
+    return min(min_distance(rail, sets, 10.0) for rail in rails)
+
+
+def _check_rails_clear_the_wheels():
+    """R5, and its control: rail B run on to 345 comes within 3.0."""
+    for takeup in _TAKEUPS:
+        d = rail_shaft_set_clearance(takeup)
+        assert d >= p.RAIL_WHEEL_CLEAR, f"{d:.2f} at takeup {takeup}"
+    assert rail_shaft_set_clearance(0.0, p.RAIL_B_T1_CONTROL) < p.RAIL_WHEEL_CLEAR
+
+
+def _cheeks(arm):
+    """The part of a placed arm above its top face, with the run along x: its two cheeks."""
+    box = arm.bounding_box()
+    return arm & Pos(box.center().X, p.RAIL_ARM_OFFSET[1], 0) * Box(
+        2 * box.size.X, box.size.Y, box.size.Z, align=(Align.CENTER, Align.MIN, Align.CENTER)
+    )
+
+
+def _check_rails_in_the_cheeks():
+    """R6: each rail sits on every arm it crosses, between its cheeks, 0.2
+    off each."""
+    parts = {**_hopper_by_label(_RUN), **_skirts_by_label(_RUN)}
+    for rail_label, (t0, t1, _) in (("carry rail", RAIL_A), ("carry rail B", RAIL_B)):
+        rail = parts[rail_label]
+        for t in p.STATION_T:
+            if t0 - p.RAIL_ARM_LEN / 2 < t < t1 + p.RAIL_ARM_LEN / 2:
+                arm = parts[f"station arm at {t:g}"]
+                assert not clash(rail, arm, tol=1e-3) and rail.distance_to(arm) < 1e-6, (rail_label, t)
+                assert abs(rail.distance_to(_cheeks(arm)) - p.RAIL_CHEEK_CLEAR) < 0.01, (rail_label, t)
+
+
+def _check_skirt_continuity():
+    """K1: the skirts take the liners' channel on from the front wall."""
+    hopper = _hopper_by_label(_RUN)
+    for side, name in ((1, "+z"), (-1, "-z")):
+        skirt_ = in_hopper(_skirts_by_label(_RUN)[f"skirt {name}"], _RUN)
+        liner_ = in_hopper(hopper[f"liner {name}"], _RUN)
+        inner = (lambda box: box.min.Z) if side > 0 else (lambda box: -box.max.Z)
+        sb, lb = skirt_.bounding_box(), liner_.bounding_box()
+        assert abs(inner(sb) - p.SKIRT_INSET) < 0.01 and abs(inner(lb) - p.SKIRT_INSET) < 0.01
+        assert abs(sb.min.Y - p.SKIRT_GAP) < 0.01 and abs(lb.min.Y - p.SKIRT_GAP) < 0.01
+        assert abs(sb.min.X - p.SKIRT_T0) < 0.01 and abs(sb.max.X - p.SKIRT_T1) < 0.01
+        assert abs(sb.max.Y - p.SKIRT_HEIGHT) < 0.01
+        skirt_ = _skirts_by_label(_RUN)[f"skirt {name}"]
+        assert skirt_.distance_to(hopper["front wall"]) < 0.01 and not clash(skirt_, hopper["front wall"], tol=0.01)
+
+
+def _check_skirts_clear_slats():
+    """K2 at every take-up and round the head; K3, the tight pair with the
+    slats pushed their full play: a cleat end against a liner or skirt."""
+    for takeup in _TAKEUPS:
+        d, s, part = skirt_slat_clearance(takeup)
+        assert d >= p.HOPPER_SLAT_CLEAR, f"{s} is {d:.2f} from {part} at takeup {takeup}"
+    assert head_arc_skirt_clearance() >= p.HOPPER_SLAT_CLEAR
+    want = p.SKIRT_INSET - p.CLEAT_LENGTH / 2 - g.slat_lateral_play()
+    for shift in (g.slat_lateral_play(), -g.slat_lateral_play()):
+        d, s, part = skirt_slat_clearance(0.0, shift)
+        assert part.startswith(("liner", "skirt +z", "skirt -z")) and abs(d - want) < 0.01, f"{s} / {part}: {d:.3f}"
+        assert g.is_cleated(int(s.split()[1]))
+
+
+def _check_skirts_clear_the_head():
+    """K4, and T5: every skirts part clear of the head end, with the drive
+    on either side, and the stations' posts and uprights clear of the hopper."""
+    parts = skirts_parts(_RUN)
+    head = [
+        part
+        for group in (pillow_blocks_group, bearings_group, spacers_group)
+        for part in group(incline=_RUN).children
+    ] + [part for part in drivetrain_group(incline=_RUN).children if part.label.startswith("head")]
+    for side in _DRIVE_SIDES:
+        others = head + list(drive_group(incline=_RUN, drive_side=side).children)
+        for part in parts:
+            d = min_distance(part, others, p.HOPPER_CLEAR)
+            assert d >= p.HOPPER_CLEAR, f"{part.label}: {d:.2f}, drive side {side}"
+    hopper = hopper_parts(_RUN)
+    for part in parts:
+        if part.label.startswith(("station post", "skirt upright")):
+            assert min_distance(part, hopper, p.HOPPER_CLEAR) >= p.HOPPER_CLEAR, part.label
+
+
+def _check_uprights_clear_the_slat_ends():
+    """T2: uprights against the carrying slats pushed their full play."""
+    uprights = [part for part in skirts_parts(_RUN) if part.label.startswith("skirt upright")]
+    assert len(uprights) == 2 * len(p.SKIRT_STATIONS)
+    for shift in (g.slat_lateral_play(), -g.slat_lateral_play()):
+        moved = [part.moved(Location((0, 0, -shift))) for part in uprights]
+        slats = slats_group(detail=True, incline=_RUN).children
+        assert min(min_distance(s, moved, p.HOPPER_CLEAR) for s in slats) >= p.HOPPER_CLEAR
+
+
+def arm_path(t: float):
+    """The box an arm sweeps sliding in from +z to its place at `t`: its
+    section in t x offset, from its +z end out to FRAME_WIDTH (T3)."""
+    length = p.FRAME_WIDTH - p.RAIL_ARM_HALF_W
+    box = Box(p.RAIL_ARM_LEN, p.RAIL_ARM_OFFSET[1] - p.RAIL_ARM_OFFSET[0], length, align=(Align.CENTER, Align.MIN, Align.MIN))
+    return box.moved(g.at(t, p.RAIL_ARM_OFFSET[0], p.RAIL_ARM_HALF_W, _RUN))
+
+
+_PANEL_OFF = ("side panel +z", "liner +z", "hopper foot +z")   # spec-skirts §5.2 step 3, at 88.5
+
+
+def arm_path_obstacles(t: float, panel_on: bool = False) -> list:
+    """What an arm sliding in at `t` must miss: the frame, the plates, the
+    belts and slats at every take-up, and the hopper's other parts (at 88.5,
+    with the +z panel and what comes off with it removed unless
+    `panel_on`). Rails, uprights and skirts go in after the arm."""
+    found = [frame(_RUN)]
+    for takeup in _TAKEUPS:
+        found += plates_group(takeup=takeup, incline=_RUN).children + belts_group(takeup=takeup, incline=_RUN).children
+        found += slats_group(detail=True, takeup=takeup, incline=_RUN).children
+    found += [
+        part for part in hopper_parts(_RUN)
+        if not part.label.startswith(("station", "carry rail")) and (panel_on or not part.label.startswith(_PANEL_OFF))
+    ]
+    return found
+
+
+def _check_arm_fitting_path():
+    """T3, and its control at 88.5 with the side panel left on. The posts
+    are checked apart: the arm slides on their tops, a touch."""
+    for t in p.STATION_T:
+        path = arm_path(t)
+        hits = [part.label for part in arm_path_obstacles(t) if clash(path, part, tol=0.01)]
+        assert not hits, f"arm at {t:g}: {hits}"
+        posts = [part for part in station_members(_RUN) if part.label.startswith("station post") and part.label.endswith(f"at {t:g}")]
+        assert len(posts) == 2 and not any(clash(path, post, tol=0.01) for post in posts)
+    assert any(clash(arm_path(p.STATION_T[0]), part, tol=1.0) for part in arm_path_obstacles(p.STATION_T[0], panel_on=True))
+
+
+def rail_path(rail, shift: float = 0.0, top: float = p.RAIL_FIT_TOP_OFFSET):
+    """The box a rail's section sweeps lowered from offset `top` onto the
+    arms, `shift` headward of its place (T4)."""
+    t0, t1, _ = rail
+    box = Box(t1 - t0, top - p.RAIL_BOTTOM_OFFSET, p.GUIDE_WIDTH, align=(Align.MIN, Align.MIN, Align.CENTER))
+    return box.moved(g.at(t0 + shift, p.RAIL_BOTTOM_OFFSET, incline=_RUN))
+
+
+def _rail_path_obstacles(hopper_too: bool) -> list:
+    found = []
+    for takeup in _TAKEUPS:
+        for group in (belts_group, pillow_blocks_group, drivetrain_group):
+            found += group(takeup=takeup, incline=_RUN).children
+    if hopper_too:
+        found += [
+            part for part in hopper_parts(_RUN)
+            if not part.label.startswith(("metering", "station", "carry rail"))
+        ]
+    return found
+
+
+def _check_rail_fitting_path():
+    """T4: rail B lowered straight in; rail A lowered RAIL_FIT_SHIFT headward
+    with the metering clamp off and slid back along the cheeks under the
+    seal clamp; the control, rail A lowered in its own place, meets the
+    seal clamp."""
+    plain = _rail_path_obstacles(False)
+    assert not any(clash(rail_path(RAIL_B), part, tol=0.01) for part in plain)
+    hopper = _rail_path_obstacles(True)
+    assert not any(clash(rail_path(RAIL_A, p.RAIL_FIT_SHIFT), part, tol=0.01) for part in hopper)
+    t0, t1, _ = RAIL_A
+    slide = Box(t1 - t0 + p.RAIL_FIT_SHIFT, g.guide_rim_radius() - p.RAIL_BOTTOM_OFFSET, p.GUIDE_WIDTH,
+                align=(Align.MIN, Align.MIN, Align.CENTER)).moved(g.at(t0, p.RAIL_BOTTOM_OFFSET, incline=_RUN))
+    assert not any(clash(slide, part, tol=0.01) for part in hopper_parts(_RUN) if not part.label.startswith(("station", "carry rail")))
+    clamp = _hopper_by_label(_RUN)["seal clamp"]
+    assert clash(rail_path(RAIL_A), clamp, tol=0.01)
+
+
+def _check_skirts_parts():
+    """V1, V2: one valid solid each; bounding boxes and volumes of §4."""
+    for part in skirts_group().children:
+        assert part.is_valid and len(part.solids()) == 1, part.label
+    rail_b = carry_rail(*RAIL_B)
+    expect = [
+        (rail_b, (p.RAIL_B_T1 - p.RAIL_B_T0, 15.447, 16.0), (28.0, 37.0)),
+        (station_post(), (p.RAIL_ARM_LEN, 36.0, 20.0), (8.0, 12.0)),
+        (station_arm(), (p.RAIL_ARM_LEN, 24.0, 2 * p.RAIL_ARM_HALF_W), (36.0, 46.0)),
+        (skirt_upright(), (p.RAIL_ARM_LEN, 46.947, 10.0), (9.0, 12.5)),
+        (skirt(1), (p.SKIRT_T1 - p.SKIRT_T0, p.SKIRT_HEIGHT - p.SKIRT_GAP, p.SKIRT_THICKNESS), (30.0, 35.0)),
+    ]
+    for part, size, (lo, hi) in expect:
+        assert all(abs(a - b) < 0.02 for a, b in zip(bbox_size(part), size)), f"{part.label}: {bbox_size(part)}"
+        assert lo <= volume_cm3(part) <= hi, f"{part.label}: {volume_cm3(part):.2f}"
+    assert abs(volume_cm3(skirt(-1)) - volume_cm3(skirt(1))) < 1e-6
+
+
+def _check_skirts_loads():
+    """M1; M2 and M3 are hopper D2 and D3, whose prop_loads() now carry the skirts."""
+    mass = skirts_mass()[0]
+    assert p.SKIRTS_MASS_RANGE[0] <= mass <= p.SKIRTS_MASS_RANGE[1], f"{mass:.3f} kg"
+    assert p.HOPPER_MASS_RANGE[0] <= hopper_mass()[0] <= p.HOPPER_MASS_RANGE[1]
+
+
 def hopper_report() -> list[str]:
     """The tables hopper-spec §8 asks to be printed: wall slopes (A4),
-    capacity (B1), the prop force with the hopper (D2), and C1's tight pair."""
+    capacity (B1), the prop force with the hopper and skirts (D2, M2), C1's
+    tight pair, and spec-skirts K3's."""
     lines = ["", "Hopper: wall slopes from horizontal, level fill, and the prop force with the hopper"]
     lines.append("  incline   flare   back wall   level fill   load at (t, offset)   rim over base front / back   prop empty / full / doubled")
     for incline in _HOPPER_GRID:
@@ -1255,6 +1600,15 @@ def hopper_report() -> list[str]:
         f"  hopper {mass:.3f} kg at t {t:.1f}, offset {offset:.1f}; LEGO at {p.LOAD_BULK_DENSITY:g} kg/L",
         f"  margin under PROP_FORCE_MAX, doubled, at {p.TILT_MIN:g} deg: {margin:.2f} N",
         f"  tightest slat clearance, slats pushed their full play: {d:.2f}, {s} / {part}",
+    ]
+    mass, t, offset = skirts_mass()
+    d, s, part = skirt_slat_clearance(0.0, g.slat_lateral_play())
+    lines += [
+        "",
+        "Skirts: rail B, the stations at 177 and 265.5, the uprights and both skirts",
+        f"  {mass:.3f} kg at t {t:.1f}, offset {offset:.1f}, in the prop force above",
+        f"  tightest slat clearance with the skirts, slats pushed their full play: {d:.2f}, {s} / {part}",
+        f"  slats rounding the head to the skirt ends: {head_arc_skirt_clearance():.2f}",
     ]
     return lines
 
@@ -1331,9 +1685,22 @@ _CHECKS = [
     ("hopper C5/C6/C7: tail", _check_hopper_tail),
     ("hopper C8: plates", _check_hopper_plates),
     ("hopper C9: base, hinge and prop", _check_hopper_tilt),
-    ("hopper C10: rail bridge", _check_rail_bridge),
+    ("hopper C10, skirts T1: stations clear the returning run", _check_stations_clear_the_returning_run),
     ("print bed: every printed part (hopper C11)", _check_print_bed),
     ("hopper D1-D3: loads", _check_hopper_loads),
+    ("skirts S1-S4: parameters", _check_skirt_parameters),
+    ("skirts R1/R2: rail B", _check_rail_b),
+    ("skirts R3/R4: rail joint and coverage", _check_rail_joint),
+    ("skirts R5: rails clear the wheels", _check_rails_clear_the_wheels),
+    ("skirts R6: rails between the cheeks", _check_rails_in_the_cheeks),
+    ("skirts K1: channel continues from the front wall", _check_skirt_continuity),
+    ("skirts K2/K3: slat clearance", _check_skirts_clear_slats),
+    ("skirts K4/T5: head end and hopper", _check_skirts_clear_the_head),
+    ("skirts T2: uprights clear the slat ends", _check_uprights_clear_the_slat_ends),
+    ("skirts T3: arms slide in with the belt on", _check_arm_fitting_path),
+    ("skirts T4: rails go in from above", _check_rail_fitting_path),
+    ("skirts V1/V2: parts", _check_skirts_parts),
+    ("skirts M1: mass", _check_skirts_loads),
 ]
 
 

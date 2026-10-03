@@ -554,7 +554,7 @@ CLEAT_EVERY = 2        # every second slat is cleated -- rev D; 46 isn't divisib
 CLEAT_HEIGHT = 12.0    # mm, above the slat top face
 CLEAT_WIDTH_ROOT = 10.0    # mm, along local x, at the slat surface
 CLEAT_WIDTH_TIP = 4.0      # mm, along local x, at the top -- drafted for printing
-CLEAT_LENGTH = 74.0        # mm, along local z, centred
+CLEAT_LENGTH = 73.0        # mm, along local z, centred -- spec-skirts D2, was 74: 1.5 to the skirt, 0.79 at worst-case play
 CLEAT_ROOT_FILLET = 1.0    # mm, both sides
 
 SLAT_COUNT = BELT_LOOP_LENGTH / SLAT_PITCH   # count, 46
@@ -573,11 +573,12 @@ SADDLE_INTERFERENCE = 0.2     # mm, total, so nominal gap = BELT_WIDTH - 0.2
 SADDLE_LIP_PROJECTION = 0.8   # mm, inward, at the tab tip
 SADDLE_LIP_HEIGHT = 1.0       # mm, along local y
 
-# --- Skirts -- recorded, not built in phase 1 ------------------------------
+# --- Skirt channel -- spec-skirts.md §3.4, shared with the hopper's liners ----
+# The rest of the skirt block is with the stations, after the hopper's.
 
-SKIRT_HEIGHT = 28.0    # mm, above slat top
-SKIRT_GAP = 1.5        # mm, skirt bottom to slat top
-SKIRT_INSET = 38.0     # mm, from centreline
+SKIRT_HEIGHT = 28.0    # mm -- PROVISIONAL, h of the skirt top above the slat top
+SKIRT_GAP = 1.5        # mm -- PROVISIONAL, skirt bottom to slat top
+SKIRT_INSET = 38.0     # mm -- PROVISIONAL, skirt inner face from the centreline
 
 # --- Hopper -- hopper-spec-v1.md §3 ----------------------------------------
 # Frame-mounted: every part is placed with at(..., incline=incline) and none
@@ -658,12 +659,20 @@ METER_GRUB_Z = (-20.0, 20.0)      # mm -- PROVISIONAL, 2 x M3 grub screws onto t
 assert METER_CLAMP_T >= BRUSH_BACKING_W + BRUSH_SLOT_CLEAR + 3.0, "metering clamp too thin round its slot"
 assert METER_GAP_MIN + BRUSH_FREE_LEN + METER_CLAMP_H >= FRONT_NOTCH_H + METER_CLAMP_LAP, "clamp leaves the notch open at its lowest"
 
-# §3.5 Carrying-run support rail and its bridge
-RAIL_T0 = 30.0                    # mm -- PROVISIONAL
-RAIL_T1 = 140.0                   # mm -- PROVISIONAL, 10 past the front wall
+# §3.5 Carrying-run support rail and its stations. spec-skirts §3.2 ends
+# this rail (rail A) at a joint on the station at 177 and adds rail B to the
+# head; the one-piece bridge became split stations (spec-skirts §4.2, §4.3).
+STATION_T = tuple(CENTRE_DIST * i / (PLATE_STATIONS - 1) for i in (1, 2, 3))   # mm, derived, 88.5, 177, 265.5: plates 1-3
+RAIL_JOINT_GAP = 0.5              # mm -- PROVISIONAL, rail A to rail B, centred on STATION_T[1]
+RAIL_T0 = 30.0                    # mm -- PROVISIONAL, rail A tail end
+RAIL_T1 = STATION_T[1] - RAIL_JOINT_GAP / 2   # mm, derived, 176.75, rail A head end (was 140)
+RAIL_B_T0 = STATION_T[1] + RAIL_JOINT_GAP / 2   # mm, derived, 177.25
+RAIL_B_T1 = 330.0                 # mm -- PROVISIONAL, rail B head end, 4.9 from the head guide wheel
+RAIL_WHEEL_CLEAR = 3.0            # mm, least rail to shaft set, every take-up (spec-skirts R5)
 RAIL_BOTTOM_OFFSET = 4.0          # mm -- PROVISIONAL, an offset, not h
-RAIL_END_CHAMFER = 45.0           # deg, lead-in at both ends, down to the groove bottom
-RAIL_ARM_T_CENTRE = CENTRE_DIST / (PLATE_STATIONS - 1)   # mm, derived, 88.5, plate 1
+RAIL_END_CHAMFER = 45.0           # deg, lead-in at the free ends, down to the groove bottom
+RAIL_JOINT_RELIEF = 0.5           # mm -- PROVISIONAL, 45 deg on the top edges at a joint end
+RAIL_ARM_T_CENTRE = STATION_T[0]  # mm, derived, 88.5, plate 1
 RAIL_ARM_LEN = 24.0               # mm -- PROVISIONAL, along the run
 RAIL_ARM_T = (RAIL_ARM_T_CENTRE - RAIL_ARM_LEN / 2, RAIL_ARM_T_CENTRE + RAIL_ARM_LEN / 2)   # mm, derived, 76.5 .. 100.5
 RAIL_ARM_OFFSET = (-12.0, RAIL_BOTTOM_OFFSET)   # mm -- PROVISIONAL, between the runs
@@ -673,8 +682,18 @@ RAIL_PAD_Z = 64.0                 # mm -- PROVISIONAL, pads reach outboard of th
 RAIL_PAD_THK = 5.0                # mm -- PROVISIONAL
 RAIL_PAD_BOLT_Z = 59.0            # mm -- PROVISIONAL, +/-, 2 x M4 per pad through the plate
 RAIL_PAD_BOLT_X = 7.0             # mm -- PROVISIONAL, +/- along the run from the plate centre
-RAIL_INSERT_X = 6.0               # mm -- PROVISIONAL, +/- from the arm centre, 2 x M3 into the rail
-RAIL_ARM_GRIP = 3.0               # mm, arm left under the counterbored M3 heads
+RAIL_INSERT_X = 6.0               # mm -- PROVISIONAL, +/- from a station centre, the rail's side screws
+RAIL_INSERT_EDGE = 4.0            # mm -- PROVISIONAL, least insert centre to rail end
+RAIL_SIDE_INSERT_OFFSET = 8.0     # mm -- PROVISIONAL, the side screws' axis: 2.0 of rail under the insert, 4.4 over it
+RAIL_FIT_SHIFT = 3.0              # mm -- PROVISIONAL, rail A goes in this far headward and slides back under the seal clamp
+RAIL_CHEEK_T = 2.5                # mm -- PROVISIONAL, the arm's two cheeks either side of the rail
+RAIL_CHEEK_CLEAR = 0.2            # mm -- PROVISIONAL, rail side to cheek
+RAIL_CHEEK_TOP_OFFSET = 12.0      # mm -- PROVISIONAL, 7.9 under the slat contact face
+STATION_POST_INSERT_X = 7.0       # mm -- PROVISIONAL, +/- along the run, 2 x M3 inserts per post top
+STATION_POST_INSERT_Z = (RAIL_POST_Z[0] + RAIL_POST_Z[1]) / 2   # mm, derived, 49.0, mid-post
+STATION_ARM_CBORE_DEPTH = 3.5     # mm -- PROVISIONAL, M3 heads sunk in the arm top (88.5)
+UPRIGHT_SCREW_LEN = 60.0          # mm -- PROVISIONAL, M3 through upright and arm into the post
+assert RAIL_B_T0 - RAIL_T1 == RAIL_JOINT_GAP
 
 # §3.6 Mounting
 HOPPER_FOOT_T = (46.0, 126.0)     # mm -- PROVISIONAL, foot centres
@@ -733,14 +752,46 @@ HOPPER_HARDWARE = (
     ("M5 x 12 + T-nut", 4, "hopper feet into the rails' top slots"),
     ("M4 x 40 + nylock + 2 washers", 8, "feet, through the slot cheeks and the side panel (grip 32)"),
     ("M4 x 25 + nylock + 2 washers", 16, "corner cleats, one per leg (grip 11 on a wall, 14 on a panel)"),
-    ("M4 x 25 + nylock + 2 washers", 4, "rail bridge pads, through the plate at 88.5 (grip 14)"),
+    ("M4 x 25 + nylock + 2 washers", 4, "station posts at 88.5, through the plate (grip 14)"),
     ("M4 x 12 + washer", 3, "seal clamp, through the back wall into the inserts; longer comes out of the clamp"),
     ("M4 heat-set insert", 3, "seal clamp"),
     ("M4 x 30 + 2 washers + wing nut", 2, "metering clamp, through the front wall and its slots (grip 18)"),
-    ("M3 x 8 socket head", 2, "rail to bridge, from below: 3 of arm, 5 into the insert"),
-    ("M3 heat-set insert", 2, "rail"),
+    ("M3 x 16 socket head", 4, "station arm at 88.5 onto its posts: 12.5 of arm, 3.5 into the insert"),
+    ("M3 heat-set insert", 4, "station post tops at 88.5"),
+    ("M3 x 8 socket head", 3, "through the cheeks into rail A's side inserts"),
+    ("M3 heat-set insert", 3, "rail A, side face"),
     ("M3 x 6 grub screw", 4, "brush backings, two per clamp"),
     ("M3 x 12 wood screw", 6, "liner flanges to the side panels"),
+)
+
+# --- Skirts, rail B and the stations at 177 and 265.5 -- spec-skirts.md §3 --
+# The channel itself (SKIRT_INSET, _GAP, _HEIGHT) is above, shared with the
+# hopper's liners. Every part here is on the frame, none on the tail plate.
+
+SKIRT_THICKNESS = 6.0             # mm -- PROVISIONAL, plywood, as the hopper's walls
+SKIRT_T0 = HOPPER_FRONT_T + WALL_THICKNESS   # mm, derived, 136.0, the front wall's outer face
+SKIRT_T1 = 350.0                  # mm -- PROVISIONAL, a slat rounding the head comes 0.31 under the bottom edge here
+SKIRT_EDGE_CHAMFER = 0.5          # mm -- PROVISIONAL, inner bottom edge, like the liner
+SKIRT_BOLT_H = (7.0, 21.0)        # mm -- PROVISIONAL, h of the two M4 per upright, at the station centre
+M4_CSK_DIA = 9.0                  # mm, catalogue, ISO 10642 head, 90 deg, sunk from the channel face
+SKIRT_STATIONS = STATION_T[1:]    # mm, derived, 177, 265.5: the stations with uprights
+SKIRT_CLEAT_CLEAR_MIN = 0.75      # mm, least cleat end to skirt or liner at full play (S1: 0.79)
+SKIRT_SLAT_LAP_MIN = 1.0          # mm, least slat end under the skirt at full play (S2: 1.29)
+SKIRTS_HARDWARE_MASS = 0.030      # kg -- PROVISIONAL, from --report
+SKIRTS_MASS_RANGE = (0.25, 0.40)  # kg (M1)
+RAIL_B_T1_CONTROL = 345.0         # mm, rail B run on this far comes within RAIL_WHEEL_CLEAR of the head wheel (R5's control)
+RAIL_FIT_TOP_OFFSET = 60.0        # mm, offset a rail is lowered from in T4's fitting path, above every slat and cleat
+assert SKIRT_INSET + SKIRT_THICKNESS == RAIL_POST_Z[0], "the skirt's outer face must land on the uprights"
+assert all(SKIRT_T0 < t < SKIRT_T1 for t in SKIRT_STATIONS)
+
+# Bought hardware for the skirts and the two stations, (item, quantity, use)
+SKIRTS_HARDWARE = (
+    ("M4 x 25 + nylock + 2 washers", 8, "station posts at 177 and 265.5, through the plates (grip 14)"),
+    ("M3 heat-set insert", 8, "station post tops at 177 and 265.5"),
+    (f"M3 x {UPRIGHT_SCREW_LEN:g} socket head", 8, "uprights, through upright and arm into the post's insert"),
+    ("M3 x 8 socket head", 3, "through the cheeks into rail B's side inserts"),
+    ("M3 heat-set insert", 3, "rail B, side face"),
+    ("M4 x 20 countersunk + nylock + washer", 8, "skirts to the uprights, heads flush on the channel face (grip 16)"),
 )
 
 # --- Printing -----------------------------------------------------------------
@@ -765,7 +816,8 @@ PRINT_ROT_METER_CLAMP = (0.0, 90.0, 0.0)     # deg, mating face down; the brush 
 PRINT_ROT_HOPPER_FOOT = (90.0, 0.0, 0.0)     # deg, bottom face down
 PRINT_ROT_CORNER_CLEAT = (90.0, 0.0, 0.0)    # deg, on an end, the angle section flat
 PRINT_ROT_CARRY_RAIL = (90.0, 0.0, 0.0)      # deg, bottom face down, groove up; 45 deg flanks
-PRINT_ROT_RAIL_BRIDGE = (0.0, 90.0, 0.0)     # deg, headward face down, the section flat
+PRINT_ROT_STATION = (0.0, 90.0, 0.0)         # deg, post and arm: headward face down, the section flat
+PRINT_ROT_UPRIGHT = (90.0, 0.0, 0.0)         # deg, bottom face down, the long M3 holes vertical
 EDGE_CHAMFER = 0.5    # mm, general outer edges
 
 # --- Tolerances -----------------------------------------------------------
